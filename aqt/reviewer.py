@@ -93,7 +93,7 @@ class Reviewer(object):
             playFromText(c.q())
         elif self.state == "answer":
             txt = ""
-            if self.mw.col.conf.get("replayBoth", True):
+            if self.mw.col.conf.get("replayBoth", False):
                 txt = c.q()
             txt += c.a()
             playFromText(txt)
