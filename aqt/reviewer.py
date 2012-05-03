@@ -356,7 +356,7 @@ Please run Tools>Maintenance>Empty Cards""")
         res = self.correct(cor, given)
         # and update the type answer area
         return re.sub(self.typeAnsPat, """
-<span style="font-family: '%s'; font-size: %spx">%s</span>""" %
+<span id=coran  style="line-height: 1.5; font-family: '%s'; font-size: %spx">%s</span>""" %
                       (self.typeFont, self.typeSize, res), buf)
 
     def _contentForCloze(self, txt, idx):
