@@ -255,7 +255,9 @@ class DataModel(QAbstractTableModel):
         return s
 
     def nextDue(self, c, index):
-        if c.queue == 0:
+        if c.odid:
+            return _("(cram)")
+        elif c.queue == 0:
             return str(c.due)
         elif c.queue == 1:
             date = c.due
@@ -281,7 +283,7 @@ class StatusDelegate(QItemDelegate):
             # in the the middle of a reset; return nothing so this row is not
             # rendered until we have a chance to reset the model
             return
-        if c.queue < 0:
+        if c.queue == -1:
             # custom render
             brush = QBrush(QColor(COLOUR_SUSPENDED))
             painter.save()
@@ -306,7 +308,6 @@ class Browser(QMainWindow):
         applyStyles(self)
         self.mw = mw
         self.col = self.mw.col
-        self.currentRow = None
         self.lastFilter = ""
         self.form = aqt.forms.browser.Ui_Dialog()
         self.form.setupUi(self)
@@ -364,6 +365,14 @@ class Browser(QMainWindow):
         c(f.actionNote, s, self.onNote)
         c(f.actionTags, s, self.onTags)
         c(f.actionCardList, s, self.onCardList)
+        # keyboard shortcut for shift+home/end
+        self.pgUpCut = QShortcut(QKeySequence("Shift+Home"), self)
+        c(self.pgUpCut, SIGNAL("activated()"), self.onFirstCard)
+        self.pgDownCut = QShortcut(QKeySequence("Shift+End"), self)
+        c(self.pgDownCut, SIGNAL("activated()"), self.onLastCard)
+        # card info
+        self.infoCut = QShortcut(QKeySequence("Ctrl+Shift+i"), self)
+        c(self.infoCut, SIGNAL("activated()"), self.showCardInfo)
         # help
         c(f.actionGuide, s, self.onHelp)
         runHook('browser.setupMenus', self)
@@ -702,7 +711,7 @@ class Browser(QMainWindow):
                 item.setIcon(0, QIcon(":/icons/deck16.png"))
                 root.addChild(item)
                 newhead = head + g[0]+"::"
-                fillGroups(item, g[4], newhead)
+                fillGroups(item, g[5], newhead)
         fillGroups(root, grps)
 
     def _modelTree(self, root):
@@ -1238,11 +1247,27 @@ select fm.id, fm.name from fieldmodels fm""")
         self.editor.web.setFocus()
 
     def onFirstCard(self):
+        sm = self.form.tableView.selectionModel()
+        idx = sm.currentIndex()
         self._moveCur(None, self.model.index(0, 0))
+        if not self.mw.app.keyboardModifiers() & Qt.ShiftModifier:
+            return
+        idx2 = sm.currentIndex()
+        item = QItemSelection(idx2, idx)
+        sm.select(item, QItemSelectionModel.SelectCurrent|
+                  QItemSelectionModel.Rows)
 
     def onLastCard(self):
+        sm = self.form.tableView.selectionModel()
+        idx = sm.currentIndex()
         self._moveCur(
             None, self.model.index(len(self.model.cards) - 1, 0))
+        if not self.mw.app.keyboardModifiers() & Qt.ShiftModifier:
+            return
+        idx2 = sm.currentIndex()
+        item = QItemSelection(idx, idx2)
+        sm.select(item, QItemSelectionModel.SelectCurrent|
+                  QItemSelectionModel.Rows)
 
     def onFind(self):
         self.form.searchEdit.setFocus()
