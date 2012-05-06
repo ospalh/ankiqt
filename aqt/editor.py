@@ -47,8 +47,6 @@ body { margin: 5px; }
 
 var currentField = null;
 var changeTimer = null;
-var insertHTMLOK = %s;
-var savedSel = null;
 var dropTarget = null;
 
 String.prototype.format = function() {
@@ -177,13 +175,14 @@ function wrap(front, back) {
     var span = document.createElement("span")
     span.appendChild(content);
     var new_ = wrappedExceptForWhitespace(span.innerHTML, front, back);
-    if (insertHTMLOK) {
-        setFormat("inserthtml", new_);
-    } else {
-        r.deleteContents();
+    setFormat("inserthtml", new_);
+    if (!span.innerHTML) {
+        // run with an empty selection; move cursor back past postfix
+        r = s.getRangeAt(0);
+        r.setStart(r.startContainer, r.startOffset - back.length);
         r.collapse(true);
-        r.insertNode(document.createTextNode(new_));
-        saveField('key');
+        s.removeAllRanges();
+        s.addRange(r);
     }
 };
 
@@ -296,8 +295,13 @@ def _filterHTML(html):
             tag.replaceWithChildren()
     # turn file:/// links into relative ones
     for tag in doc("img"):
-        if tag['src'].lower().startswith("file://"):
-            tag['src'] = os.path.basename(tag['src'])
+        try:
+            if tag['src'].lower().startswith("file://"):
+                tag['src'] = os.path.basename(tag['src'])
+        except KeyError:
+            # for some bizarre reason, mnemosyne removes src elements
+            # from missing media
+            pass
     # strip superfluous elements
     for elem in "html", "head", "body", "meta":
         for tag in doc(elem):
@@ -534,7 +538,6 @@ class Editor(object):
         if self.note:
             self.web.setHtml(_html % (
                 getBase(self.mw.col), fontForPlatform(), anki.js.jquery,
-                (isMac or isWin) and 1 or 0,
                 _("Show Duplicates")), loadCB=self._loadFinished)
             self.updateTagsAndDeck()
             self.updateKeyboard()
@@ -987,6 +990,7 @@ class EditorWebView(AnkiWebView):
         QWebView.dropEvent(self, new)
         # tell the drop target to take focus so the drop contents are saved
         self.eval("dropTarget.focus();")
+        self.setFocus()
 
     def prepareClip(self, mode=QClipboard.Clipboard):
         clip = self.editor.mw.app.clipboard()

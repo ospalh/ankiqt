@@ -107,7 +107,7 @@ class Reviewer(object):
 <script>
 var ankiPlatform = "desktop";
 var typeans;
-function _updateQA (q, answerMode) {
+function _updateQA (q, answerMode, klass) {
     $("#qa")[0].innerHTML = q;
     typeans = document.getElementById("typeans");
     if (typeans) {
@@ -115,6 +115,9 @@ function _updateQA (q, answerMode) {
     }
     if (answerMode) {
         window.location = "#answer";
+    }
+    if (klass) {
+        document.body.className = klass;
     }
 };
 
@@ -145,7 +148,7 @@ function _typeAnsPress() {
         base = getBase(self.mw.col)
         # main window
         self.web.stdHtml(self._revHtml, self._styles(),
-            bodyClass="card", loadCB=lambda x: self._showQuestion(),
+            loadCB=lambda x: self._showQuestion(),
             head=base)
         # show answer / ease buttons
         self.bottom.web.show()
@@ -167,12 +170,17 @@ function _typeAnsPress() {
         self.typedAnswer = None
         c = self.card
         # grab the question and play audio
-        q = c.q()
+        if c.isEmpty():
+            q = _("""\
+The front of this card is empty. Please run Tools>Maintenance>Empty Cards.""")
+        else:
+            q = c.q()
         if self._autoplay(c):
             playFromText(q)
         # render & update bottom
         q = self._mungeQA(q)
-        self.web.eval("_updateQA(%s, false);" % json.dumps(q))
+        klass = "card card%d" % (c.ord+1)
+        self.web.eval("_updateQA(%s, false, '%s');" % (json.dumps(q), klass))
         self._toggleStar()
         if self._bottomReady:
             self._showAnswerButton()
@@ -350,7 +358,8 @@ Please run Tools>Maintenance>Empty Cards""")
         self.web.eval("_getTypedText();")
         # munge correct value
         parser = HTMLParser.HTMLParser()
-        cor = parser.unescape(self.typeCorrect)
+        cor = stripHTML(self.mw.col.media.strip(self.typeCorrect))
+        cor = parser.unescape(cor)
         given = self.typedAnswer
         # compare with typed answer
         res = self.correct(cor, given)
