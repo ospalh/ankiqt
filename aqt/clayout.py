@@ -153,7 +153,7 @@ Please create a new card type first."""))
             repos.setAutoDefault(False)
             l.addWidget(repos)
             c(repos, SIGNAL("clicked()"), self.onReorder)
-            tgt = QPushButton(_("Deck..."))
+            self.deckButton = tgt = QPushButton(_("Deck..."))
             tgt.setAutoDefault(False)
             l.addWidget(tgt)
             c(tgt, SIGNAL("clicked()"), self.onTargetDeck)
@@ -185,6 +185,11 @@ Please create a new card type first."""))
         self.tab['tform'].front.setPlainText(t['qfmt'])
         self.tab['tform'].css.setPlainText(self.model['css'])
         self.tab['tform'].back.setPlainText(t['afmt'])
+        if self.model['type'] != MODEL_CLOZE:
+            if t['did']:
+                self.deckButton.setText("Specific Deck...")
+            else:
+                self.deckButton.setText("Default Deck...")
         self.redrawing = False
 
     def saveCard(self):
@@ -209,7 +214,7 @@ Please create a new card type first."""))
             ti(mungeQA(c.q(reload=True))), self.mw.reviewer._styles(),
             bodyClass="card card%d" % (c.ord+1), head=base)
         self.tab['pform'].backWeb.stdHtml(
-            ti(mungeQA(c.a())), self.mw.reviewer._styles(),
+            ti(mungeQA(c.a()), type='a'), self.mw.reviewer._styles(),
             bodyClass="card card%d" % (c.ord+1), head=base)
         clearAudioQueue()
         if c.id not in self.playedAudio:
@@ -219,10 +224,11 @@ Please create a new card type first."""))
 
     def maybeTextInput(self, txt, type='q'):
         if type == 'q':
-            repl = "<center><input type=text value='%s'></center>" % _(
+            repl = "<center><input type=text size=30 value='%s'></center>" % _(
                 "(text is typed in here)")
         else:
             repl = _("(typing comparison appears here)")
+        repl = "<font size=2>%s</font>" % repl
         return re.sub("\[\[type:.+?\]\]", repl, txt)
 
     # Card operations

@@ -79,7 +79,7 @@ td.opts { white-space: nowrap; }
 tr.drag-hover td { border-bottom: %(width)s solid #aaa; }
 .extra { font-size: 90%%; }
 body { margin: 1em; -webkit-user-select: none; }
-.current { background-color: #ececec; }
+.current { background-color: #e7e7e7; }
 .decktd { min-width: 15em; }
 .count { width: 6em; text-align: right; }
 """ % dict(width=_dragIndicatorBorderWidth)
@@ -151,7 +151,7 @@ body { margin: 1em; -webkit-user-select: none; }
         name, did, due, lrn, new, children = node
         due += lrn
         def indent():
-            return "&nbsp;"*3*depth
+            return "&nbsp;"*6*depth
         if did == self.mw.col.conf['curDeck']:
             klass = 'deck current'
         else:
@@ -233,8 +233,8 @@ body { margin: 1em; -webkit-user-select: none; }
         if not deck['dyn']:
             dids = [did] + [r[1] for r in self.mw.col.decks.children(did)]
             cnt = self.mw.col.db.scalar(
-                "select count() from cards where did in %s" %
-                ids2str(dids))
+                "select count() from cards where did in {0} or "
+                "odid in {0}".format(ids2str(dids)))
             if cnt:
                 extra = _(" It has %d cards.") % cnt
             else:
