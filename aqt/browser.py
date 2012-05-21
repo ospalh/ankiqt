@@ -71,7 +71,8 @@ class DataModel(QAbstractTableModel):
             return f
         if role == Qt.TextAlignmentRole:
             align = Qt.AlignVCenter
-            if index.column() > 1:
+            if self.activeCols[index.column()] not in ("question", "answer",
+               "template", "deck", "noteFld"):
                 align |= Qt.AlignHCenter
             return align
         elif role == Qt.DisplayRole or role == Qt.EditRole:
@@ -82,7 +83,7 @@ class DataModel(QAbstractTableModel):
     def headerData(self, section, orientation, role):
         if orientation == Qt.Vertical:
             return
-        elif role == Qt.DisplayRole:
+        elif role == Qt.DisplayRole and section < len(self.activeCols):
             type = self.columnType(section)
             for stype, name in self.browser.columns:
                 if type == stype:
@@ -185,13 +186,7 @@ class DataModel(QAbstractTableModel):
     ######################################################################
 
     def columnType(self, column):
-        try:
-            type = self.activeCols[column]
-        except:
-            # debugging
-            print column, self.activeCols
-            return "noteFld"
-        return type
+        return self.activeCols[column]
 
     def columnData(self, index):
         row = index.row()
@@ -243,7 +238,11 @@ class DataModel(QAbstractTableModel):
         return self.formatQA(c.q())
 
     def answer(self, c):
-        return self.formatQA(c.a())
+        q = self.question(c)
+        a = self.formatQA(c.a())
+        if a.startswith(q):
+            return a[len(q):].strip()
+        return a
 
     def formatQA(self, txt):
         s = txt.replace("<br>", u" ")
@@ -261,7 +260,7 @@ class DataModel(QAbstractTableModel):
             return str(c.due)
         elif c.queue == 1:
             date = c.due
-        elif c.queue == 2:
+        elif c.queue in (2,3):
             date = time.time() + ((c.due - self.col.sched.today)*86400)
         else:
             return _("(susp.)")
@@ -393,6 +392,7 @@ class Browser(QMainWindow):
         saveState(self, "editor")
         saveHeader(self.form.tableView.horizontalHeader(), "editor")
         self.col.conf['activeCols'] = self.model.activeCols
+        self.col.setMod()
         self.hide()
         aqt.dialogs.close("Browser")
         self.teardownHooks()
@@ -440,14 +440,8 @@ class Browser(QMainWindow):
                      SIGNAL("returnPressed()"),
                      self.onSearch)
         self.setTabOrder(self.form.searchEdit, self.form.tableView)
-        # self.compModel = QStringListModel()
         self.form.searchEdit.setCompleter(None)
         self.form.searchEdit.addItems(self.mw.pm.profile['searchHistory'])
-        #self.compModel.setStringList(self.mw.pm.profile['searchHistory'])
-        #self.searchComp = QCompleter(self.compModel, self.form.searchEdit)
-        #self.searchComp.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
-        #self.searchComp.setCaseSensitivity(Qt.CaseInsensitive)
-        #self.form.searchEdit.setCompleter(self.searchComp)
 
     def onSearch(self, reset=True):
         "Careful: if reset is true, the current note is saved."
@@ -548,6 +542,8 @@ class Browser(QMainWindow):
         self.setSortIndicator()
         hh.connect(hh, SIGNAL("sortIndicatorChanged(int, Qt::SortOrder)"),
                    self.onSortChanged)
+        hh.connect(hh, SIGNAL("sectionMoved(int,int,int)"),
+                   self.onColumnMoved)
 
     def onSortChanged(self, idx, ord):
         type = self.model.activeCols[idx]
@@ -620,11 +616,14 @@ by clicking on one on the left."""))
 
     def setColumnSizes(self):
         hh = self.form.tableView.horizontalHeader()
-        for c, i in enumerate(self.model.activeCols):
-            if c == len(self.model.activeCols) - 1:
-                hh.setResizeMode(c, QHeaderView.Stretch)
+        for i in range(len(self.model.activeCols)):
+            if hh.visualIndex(i) == len(self.model.activeCols) - 1:
+                hh.setResizeMode(i, QHeaderView.Stretch)
             else:
-                hh.setResizeMode(c, QHeaderView.Interactive)
+                hh.setResizeMode(i, QHeaderView.Interactive)
+
+    def onColumnMoved(self, a, b, c):
+        self.setColumnSizes()
 
     # Filter tree
     ######################################################################

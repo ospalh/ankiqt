@@ -318,7 +318,7 @@ Are you sure?""")):
         self.reviewer.show()
 
     def _reviewCleanup(self, newState):
-        if newState != "resetRequired":
+        if newState != "resetRequired" and newState != "review":
             self.reviewer.cleanup()
 
     def noteChanged(self, nid):
@@ -688,10 +688,10 @@ upload, overwriting any changes either here or on AnkiWeb. Proceed?""")):
         import aqt.dyndeckconf
         n = 1
         decks = self.col.decks.allNames()
-        while _("Cram %d") % n in decks:
+        while _("Filter/Cram %d") % n in decks:
             n += 1
-        name = _("Cram %d") % n
-        name = getOnlyText(_("Please name your cram deck:"), default=name)
+        name = _("Filter/Cram %d") % n
+        name = getOnlyText(_("New deck name:"), default=name)
         if not name:
             return
         if name in decks:
@@ -863,7 +863,10 @@ will be lost. Continue?"""))
 
     def onStudyDeck(self):
         from aqt.studydeck import StudyDeck
-        StudyDeck(self)
+        ret = StudyDeck(self)
+        if ret.name:
+            self.col.decks.select(self.col.decks.id(ret.name))
+            self.moveToState("overview")
 
     def onEmptyCards(self):
         self.progress.start(immediate=True)

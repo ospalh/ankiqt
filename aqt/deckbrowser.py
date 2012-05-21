@@ -71,11 +71,12 @@ or importing text files."""))
 
     _css = """
 tr { font-size: 12px; }
-a.deck { color: #000; text-decoration: none; }
+a.deck { color: #000; text-decoration: none; min-width: 5em;
+         display:inline-block; }
 a.deck:hover { text-decoration: underline; }
 tr.deck td { border-bottom: %(width)s solid #e7e7e7; }
 tr.top-level-drag-row td { border-bottom: %(width)s solid transparent; }
-td.opts { white-space: nowrap; }
+td { white-space: nowrap; }
 tr.drag-hover td { border-bottom: %(width)s solid #aaa; }
 .extra { font-size: 90%%; }
 body { margin: 1em; -webkit-user-select: none; }
@@ -238,8 +239,8 @@ body { margin: 1em; -webkit-user-select: none; }
             if cnt:
                 extra = _(" It has %d cards.") % cnt
             else:
-                extra = ""
-        if deck['dyn'] or askUser(
+                extra = None
+        if deck['dyn'] or not extra or askUser(
             _("Are you sure you wish to delete %s?" % deck['name']) +
             extra):
             self.mw.progress.start(immediate=True)
@@ -255,7 +256,7 @@ body { margin: 1em; -webkit-user-select: none; }
             ["", "shared", _("Get Shared")],
             ["", "create", _("Create")],
             ["Ctrl+I", "import", _("Import File")],
-            ["C", "cram", _("Cram")],
+            ["C", "cram", _("Filter/Cram")],
         ]
         buf = ""
         for b in links:

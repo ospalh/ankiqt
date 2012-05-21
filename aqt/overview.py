@@ -48,10 +48,15 @@ class Overview(object):
         elif url == "refresh":
             self.mw.col.sched.rebuildDyn()
             self.mw.reset()
+        elif url == "empty":
+            self.mw.col.sched.remDyn(self.mw.col.decks.selected())
+            self.mw.reset()
         elif url == "decks":
             self.mw.moveToState("deckBrowser")
         elif url == "review":
             openLink(aqt.appShared+"info/%s?v=%s"%(self.sid, self.sidVer))
+        elif url == "limits":
+            self.onLimits()
 
     def _keyHandler(self, evt):
         cram = self.mw.col.decks.current()['dyn']
@@ -63,6 +68,11 @@ class Overview(object):
         if key == "r" and cram:
             self.mw.col.sched.rebuildDyn()
             self.mw.reset()
+        if key == "e" and cram:
+            self.mw.col.sched.remDyn(self.mw.col.decks.selected())
+            self.mw.reset()
+        if key == "l":
+            self.onLimits()
 
     # HTML
     ############################################################
@@ -177,9 +187,14 @@ text-align: center;
             ["o", "opts", _("Options")],
         ]
         if self.mw.col.decks.current()['dyn']:
-            links.append(["r", "refresh", _("Rebuild")])
+            links.append(["R", "refresh", _("Rebuild")])
+            links.append(["E", "empty", _("Empty")])
         else:
-            links.append(["c", "cram", _("Cram")])
+            if not sum(self.mw.col.sched.counts()):
+                if self.mw.col.sched.newDue() or \
+                   self.mw.col.sched.revDue():
+                    links.append(["L", "limits", _("Study More")])
+            links.append(["C", "cram", _("Filter/Cram")])
         buf = ""
         for b in links:
             if b[0]:
@@ -189,3 +204,23 @@ text-align: center;
         self.bottom.draw(buf)
         self.bottom.web.setFixedHeight(isMac and 28 or 36)
         self.bottom.web.setLinkHandler(self._linkHandler)
+
+    # Today's limits
+    ######################################################################
+
+    def onLimits(self):
+        d = QDialog(self.mw)
+        frm = aqt.forms.limits.Ui_Dialog()
+        frm.setupUi(d)
+        deck = self.mw.col.decks.current()
+        frm.newToday.setValue(deck.get('extendNew', 10))
+        frm.revToday.setValue(deck.get('extendRev', 50))
+        def accept():
+            n = deck['extendNew'] = frm.newToday.value()
+            r = deck['extendRev'] = frm.revToday.value()
+            self.mw.col.decks.save(deck)
+            self.mw.col.sched.extendLimits(n, r)
+            self.mw.reset()
+        d.connect(frm.buttonBox, SIGNAL("accepted()"), accept)
+        d.exec_()
+

@@ -12,6 +12,7 @@ from aqt.utils import saveGeom, restoreGeom, getBase, mungeQA, \
      showWarning, openHelp, openLink
 from anki.utils import isMac, isWin, joinFields
 from aqt.webview import AnkiWebView
+import anki.js
 
 class CardLayout(QDialog):
 
@@ -187,9 +188,9 @@ Please create a new card type first."""))
         self.tab['tform'].back.setPlainText(t['afmt'])
         if self.model['type'] != MODEL_CLOZE:
             if t['did']:
-                self.deckButton.setText("Specific Deck...")
+                self.deckButton.setText(_("Specific Deck..."))
             else:
-                self.deckButton.setText("Default Deck...")
+                self.deckButton.setText(_("Default Deck..."))
         self.redrawing = False
 
     def saveCard(self):
@@ -212,10 +213,12 @@ Please create a new card type first."""))
         base = getBase(self.mw.col)
         self.tab['pform'].frontWeb.stdHtml(
             ti(mungeQA(c.q(reload=True))), self.mw.reviewer._styles(),
-            bodyClass="card card%d" % (c.ord+1), head=base)
+            bodyClass="card card%d" % (c.ord+1), head=base,
+            js=anki.js.browserSel)
         self.tab['pform'].backWeb.stdHtml(
             ti(mungeQA(c.a()), type='a'), self.mw.reviewer._styles(),
-            bodyClass="card card%d" % (c.ord+1), head=base)
+            bodyClass="card card%d" % (c.ord+1), head=base,
+            js=anki.js.browserSel)
         clearAudioQueue()
         if c.id not in self.playedAudio:
             playFromText(c.q())
@@ -228,7 +231,7 @@ Please create a new card type first."""))
                 "(text is typed in here)")
         else:
             repl = _("(typing comparison appears here)")
-        repl = "<font size=2>%s</font>" % repl
+        repl = "<center><font size=2>%s</font></center>" % repl
         return re.sub("\[\[type:.+?\]\]", repl, txt)
 
     # Card operations

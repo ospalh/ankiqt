@@ -6,6 +6,7 @@ from operator import itemgetter
 from aqt.utils import showInfo, askUser, getText, maybeHideClose, openHelp
 import aqt.modelchooser, aqt.clayout
 from anki import stdmodels
+from aqt.utils import saveGeom, restoreGeom
 
 class Models(QDialog):
     def __init__(self, mw, parent=None):
@@ -20,6 +21,7 @@ class Models(QDialog):
         self.connect(self.form.buttonBox, SIGNAL("helpRequested()"),
                      lambda: openHelp("notetypes"))
         self.setupModels()
+        restoreGeom(self, "models")
         self.exec_()
 
     # Models
@@ -85,9 +87,11 @@ class Models(QDialog):
             showInfo(_("Please add another note type first."),
                      parent=self)
             return
-        if not askUser(
-            _("Delete this note type and all its cards?"),
-            parent=self):
+        if self.mm.useCount(self.model):
+            msg = _("Delete this note type and all its cards?")
+        else:
+            msg = _("Delete this unused note type?")
+        if not askUser(msg, parent=self):
             return
         self.mm.rem(self.model)
         self.model = None
@@ -118,8 +122,8 @@ class Models(QDialog):
     def reject(self):
         self.saveModel()
         self.mw.reset()
+        saveGeom(self, "models")
         QDialog.reject(self)
-
 
 class AddModel(QDialog):
 

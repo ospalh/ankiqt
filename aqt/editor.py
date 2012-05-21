@@ -674,15 +674,18 @@ class Editor(object):
             self.tags.setCol(self.mw.col)
         if self.addMode:
             if self.mw.col.conf.get("addToCur", True):
-                col = self.mw.col
-                did = col.conf['curDeck']
-                if col.decks.isDyn(did):
-                    did = 1
-                self.deck.setText(self.mw.col.decks.name(did))
+                if not self.deck.text():
+                    col = self.mw.col
+                    did = col.conf['curDeck']
+                    if col.decks.isDyn(did):
+                        did = 1
+                    self.deck.setText(self.mw.col.decks.nameOrNone(
+                        did) or _("Default"))
             else:
                 self.deck.setText(self.mw.col.decks.nameOrNone(
                     self.note.model()['did']) or _("Default"))
-        self.tags.setText(self.note.stringTags().strip())
+        if not self.tags.text():
+            self.tags.setText(self.note.stringTags().strip())
 
     def saveTags(self):
         if not self.note:
@@ -705,10 +708,6 @@ class Editor(object):
                     did = 1
                     showInfo(_("Using default deck instead of cram deck."))
                 self.note.model()['did'] = did
-                # if adding to the current and the user specified a different
-                # deck, make that the current
-                if self.mw.col.conf.get("addToCur", True):
-                    self.mw.col.decks.select(did)
             # save tags to model
             m = self.note.model()
             m['tags'] = self.note.tags
@@ -743,7 +742,9 @@ class Editor(object):
     def onCloze(self):
         # check that the model is set up for cloze deletion
         if '{{cloze:' not in self.note.model()['tmpls'][0]['qfmt']:
-            openHelp("cloze")
+            showInfo(_("""\
+To use this button, please select the Cloze note type. To learn more, \
+please click the help button."""), help="cloze")
             return
         # find the highest existing cloze
         highest = 0
