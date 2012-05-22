@@ -72,7 +72,7 @@ class DataModel(QAbstractTableModel):
         if role == Qt.TextAlignmentRole:
             align = Qt.AlignVCenter
             if self.activeCols[index.column()] not in ("question", "answer",
-               "template", "deck", "noteFld"):
+               "template", "deck", "noteFld", "note"):
                 align |= Qt.AlignHCenter
             return align
         elif role == Qt.DisplayRole or role == Qt.EditRole:
@@ -217,6 +217,8 @@ class DataModel(QAbstractTableModel):
             return str(c.reps)
         elif type == "cardLapses":
             return str(c.lapses)
+        elif type == "note":
+            return c.model()['name']
         elif type == "cardIvl":
             if c.type == 0:
                 return _("(new)")
@@ -235,9 +237,14 @@ class DataModel(QAbstractTableModel):
             return self.browser.mw.col.decks.name(c.did)
 
     def question(self, c):
-        return self.formatQA(c.q())
+        return self.formatQA(c.q(browser=True))
 
     def answer(self, c):
+        if c.template().get('bafmt'):
+            # they have provided a template, use it verbatim
+            c.q(browser=True)
+            return self.formatQA(c.a())
+        # need to strip question from answer
         q = self.question(c)
         a = self.formatQA(c.a())
         if a.startswith(q):
@@ -249,6 +256,7 @@ class DataModel(QAbstractTableModel):
         s = s.replace("<br />", u" ")
         s = s.replace("\n", u" ")
         s = re.sub("\[sound:[^]]+\]", "", s)
+        s = re.sub("\[\[type:[^]]+\]\]", "", s)
         s = stripHTMLMedia(s)
         s = s.strip()
         return s
@@ -413,8 +421,8 @@ class Browser(QMainWindow):
 
     def setupColumns(self):
         self.columns = [
-            ('question', _("Question")),
-            ('answer', _("Answer")),
+            ('question', _("Front")),
+            ('answer', _("Back")),
             ('template', _("Card")),
             ('deck', _("Deck")),
             ('noteFld', _("Sort Field")),
@@ -426,7 +434,9 @@ class Browser(QMainWindow):
             ('cardEase', _("Ease")),
             ('cardReps', _("Reviews")),
             ('cardLapses', _("Lapses")),
+            ('note', _("Note")),
         ]
+        self.columns.sort(key=itemgetter(1))
 
     # Searching
     ######################################################################
@@ -498,6 +508,7 @@ class Browser(QMainWindow):
     def setupEditor(self):
         self.editor = aqt.editor.Editor(
             self.mw, self.form.fieldsArea, self)
+        self.editor.outerLayout.setContentsMargins(0, 6, 6, 0)
         self.editor.stealFocus = False
 
     def onRowChanged(self, current, previous):
@@ -547,7 +558,7 @@ class Browser(QMainWindow):
 
     def onSortChanged(self, idx, ord):
         type = self.model.activeCols[idx]
-        noSort = ("question", "answer", "template", "deck")
+        noSort = ("question", "answer", "template", "deck", "note")
         if type in noSort:
             if type == "template":
                 showInfo(_("""\
@@ -609,9 +620,9 @@ by clicking on one on the left."""))
             self.model.activeCols.remove(type)
         else:
             self.model.activeCols.append(type)
-        self.setColumnSizes()
         # sorted field may have been hidden
         self.setSortIndicator()
+        self.setColumnSizes()
         self.model.endReset()
 
     def setColumnSizes(self):
