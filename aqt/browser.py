@@ -111,7 +111,8 @@ class DataModel(QAbstractTableModel):
         # the db progress handler may cause a refresh, so we need to zero out
         # old data first
         self.cards = []
-        self.cards = self.col.findCards(txt, self.browser.mw.pm.profile['fullSearch'])
+        self.cards = self.col.findCards(txt, order=True)
+        #self.browser.mw.pm.profile['fullSearch'])
         #print "fetch cards in %dms" % ((time.time() - t)*1000)
         if reset:
             self.endReset()
@@ -380,6 +381,9 @@ class Browser(QMainWindow):
         # card info
         self.infoCut = QShortcut(QKeySequence("Ctrl+Shift+i"), self)
         c(self.infoCut, SIGNAL("activated()"), self.showCardInfo)
+        # set deck
+        self.changeDeckCut = QShortcut(QKeySequence("Ctrl+d"), self)
+        c(self.changeDeckCut, SIGNAL("activated()"), self.setDeck)
         # help
         c(f.actionGuide, s, self.onHelp)
         runHook('browser.setupMenus', self)
@@ -508,7 +512,6 @@ class Browser(QMainWindow):
     def setupEditor(self):
         self.editor = aqt.editor.Editor(
             self.mw, self.form.fieldsArea, self)
-        self.editor.outerLayout.setContentsMargins(0, 6, 6, 0)
         self.editor.stealFocus = False
 
     def onRowChanged(self, current, previous):
@@ -524,7 +527,6 @@ class Browser(QMainWindow):
             self.editor.setNote(self.card.note(reload=True))
             self.editor.card = self.card
         self.toolbar.draw()
-        self.buildTree()
 
     def refreshCurrentCard(self, note):
         self.model.refreshNote(note)
@@ -698,8 +700,10 @@ by clicking on one on the left."""))
 
     def _systemTagTree(self, root):
         tags = (
-            (_("Whole Collection"), "anki", ""),
+            (_("Whole Collection"), "ankibw", ""),
             (_("Current Deck"), "deck16", "deck:current"),
+            (_("Studied Today"), "view-pim-calendar.png", "rated:1"),
+            (_("Again Today"), "view-pim-calendar.png", "rated:1:1"),
             (_("New"), "plus16.png", "is:new"),
             (_("Learning"), "stock_new_template_red.png", "is:learn"),
             (_("Review"), "clock16.png", "is:review"),
@@ -914,29 +918,21 @@ where id in %s""" % ids2str(sf))
     ######################################################################
 
     def setDeck(self):
-        d = QDialog(self)
-        d.setWindowModality(Qt.WindowModal)
-        frm = aqt.forms.setgroup.Ui_Dialog()
-        frm.setupUi(d)
-        from aqt.tagedit import TagEdit
-        te = TagEdit(d, type=1)
-        frm.verticalLayout_2.insertWidget(1, te)
-        te.setCol(self.col)
-        d.connect(d, SIGNAL("accepted()"), lambda: self._onSetDeck(frm, te))
-        d.show()
-        te.setFocus()
-
-    def _onSetDeck(self, frm, te):
-        did = self.col.decks.id(unicode(te.text()))
+        from aqt.studydeck import StudyDeck
+        ret = StudyDeck(
+            self.mw, current=None, accept=_("Move Cards"),
+            title=_("Change Deck"), help="browse", parent=self)
+        if not ret.name:
+            return
+        did = self.col.decks.id(ret.name)
         deck = self.col.decks.get(did)
         if deck['dyn']:
-            showWarning(_("Cards can't be manually moved into a cram deck."))
+            showWarning(_("Cards can't be manually moved into a filtered deck."))
             return
         self.model.beginReset()
-        self.mw.checkpoint(_("Set Deck"))
+        self.mw.checkpoint(_("Change Deck"))
         mod = intTime()
         usn = self.col.usn()
-        did = self.col.decks.id(unicode(te.text()))
         self.col.db.execute("""
 update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
                 self.selectedCards()), usn, mod, did)
@@ -1079,14 +1075,16 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
         addHook("reset", self.onReset)
         addHook("editTimer", self.refreshCurrentCard)
         addHook("editFocusLost", self.refreshCurrentCardFilter)
-        addHook("newTag", self.buildTree)
+        for t in "newTag", "newModel", "newDeck":
+            addHook(t, self.buildTree)
 
     def teardownHooks(self):
         remHook("reset", self.onReset)
         remHook("editTimer", self.refreshCurrentCard)
         remHook("editFocusLost", self.refreshCurrentCard)
         remHook("undoState", self.onUndoState)
-        remHook("newTag", self.buildTree)
+        for t in "newTag", "newModel", "newDeck":
+            remHook(t, self.buildTree)
 
     def onUndoState(self, on):
         self.form.actionUndo.setEnabled(on)
@@ -1104,6 +1102,8 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
             self.mw.pm.profile['editFontFamily']))
         frm.fontSize.setValue(self.mw.pm.profile['editFontSize'])
         frm.lineSize.setValue(self.mw.pm.profile['editLineSize'])
+        # disabled for now
+        frm.fullSearch.setShown(False)
         frm.fullSearch.setChecked(self.mw.pm.profile['fullSearch'])
         if d.exec_():
             self.mw.pm.profile['editFontFamily'] = (
@@ -1258,12 +1258,16 @@ select fm.id, fm.name from fieldmodels fm""")
         tv.setCurrentIndex(idx)
 
     def onPreviousCard(self):
+        f = self.editor.currentField
         self._moveCur(QAbstractItemView.MoveUp)
         self.editor.web.setFocus()
+        self.editor.web.eval("focusField(%d)" % f)
 
     def onNextCard(self):
+        f = self.editor.currentField
         self._moveCur(QAbstractItemView.MoveDown)
         self.editor.web.setFocus()
+        self.editor.web.eval("focusField(%d)" % f)
 
     def onFirstCard(self):
         sm = self.form.tableView.selectionModel()
@@ -1480,7 +1484,7 @@ class BrowserToolbar(Toolbar):
     def draw(self):
         mark = self.browser.isMarked()
         pause = self.browser.isSuspended()
-        def borderImg(link, icon, on, title):
+        def borderImg(link, icon, on, title, tooltip=None):
             if on:
                 fmt = '''\
 <a class=hitem title="%s" href="%s">\
@@ -1488,13 +1492,15 @@ class BrowserToolbar(Toolbar):
             else:
                 fmt = '''\
 <a class=hitem title="%s" href="%s"><img style="padding: 1px;" valign=bottom src="qrc:/icons/%s.png"> %s</a>'''
-            return fmt % (title, link, icon, title)
+            return fmt % (tooltip or title, link, icon, title)
         right = "<div>"
         right += borderImg("add", "add16", False, _("Add"))
-        right += borderImg("info", "info", False, _("Info"))
+        right += borderImg("info", "info", False, _("Info"),
+                       _("Card Info (Ctrl+Shift+I)"))
         right += borderImg("mark", "star16", mark, _("Mark"))
         right += borderImg("pause", "pause16", pause, _("Suspend"))
-        right += borderImg("setDeck", "deck16", False, _("Change Deck"))
+        right += borderImg("setDeck", "deck16", False, _("Change Deck"),
+                           _("Move To Deck (Ctrl+D)"))
         right += borderImg("addtag", "addtag16", False, _("Add Tags"))
         right += borderImg("deletetag", "deletetag16", False, _("Remove Tags"))
         right += borderImg("delete", "delete16", False, _("Delete"))

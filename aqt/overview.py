@@ -49,7 +49,7 @@ class Overview(object):
             self.mw.col.sched.rebuildDyn()
             self.mw.reset()
         elif url == "empty":
-            self.mw.col.sched.remDyn(self.mw.col.decks.selected())
+            self.mw.col.sched.emptyDyn(self.mw.col.decks.selected())
             self.mw.reset()
         elif url == "decks":
             self.mw.moveToState("deckBrowser")
@@ -63,13 +63,13 @@ class Overview(object):
         key = unicode(evt.text())
         if key == "o":
             self.mw.onDeckConf()
-        if key == "c" and not cram:
+        if key == "f" and not cram:
             self.mw.onCram()
         if key == "r" and cram:
             self.mw.col.sched.rebuildDyn()
             self.mw.reset()
         if key == "e" and cram:
-            self.mw.col.sched.remDyn(self.mw.col.decks.selected())
+            self.mw.col.sched.emptyDyn(self.mw.col.decks.selected())
             self.mw.reset()
         if key == "l":
             self.onLimits()
@@ -95,10 +95,10 @@ class Overview(object):
 
     def _desc(self, deck):
         if deck['dyn']:
-            desc = "%s<br>%s<br>%s" % (
-                _("Search: %s") % deck['search'],
-                _("Order: %s") % dynOrderLabels()[deck['order']],
-                _("Steps: %s") % " ".join([str(x) for x in deck['delays']]))
+            search, limit, order  = deck['terms'][0]
+            desc = "%s<br>%s" % (
+                _("Search: %s") % search,
+                _("Order: %s") % dynOrderLabels()[order].lower())
         else:
             desc = deck.get("desc", "")
         if not desc:
@@ -194,7 +194,7 @@ text-align: center;
                 if self.mw.col.sched.newDue() or \
                    self.mw.col.sched.revDue():
                     links.append(["L", "limits", _("Study More")])
-            links.append(["C", "cram", _("Filter/Cram")])
+            links.append(["F", "cram", _("Filter/Cram")])
         buf = ""
         for b in links:
             if b[0]:

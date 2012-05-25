@@ -325,7 +325,7 @@ class Editor(object):
         self.setupOuter()
         self.setupButtons()
         self.setupWeb()
-        self.setupTagsAndDeck()
+        self.setupTags()
         self.setupKeyboard()
 
     # Initial setup
@@ -397,6 +397,7 @@ class Editor(object):
         b("fields", self.onFields, "",
           shortcut(_("Customize Fields")), size=False, text=_("Fields..."),
           native=True, canDisable=False)
+        self.iconsBox.addItem(QSpacerItem(6,1, QSizePolicy.Fixed))
         b("layout", self.onCardLayout, _("Ctrl+L"),
           shortcut(_("Customize Cards (Ctrl+L)")),
           size=False, text=_("Cards..."), native=True, canDisable=False)
@@ -539,7 +540,7 @@ class Editor(object):
             self.web.setHtml(_html % (
                 getBase(self.mw.col), fontForPlatform(), anki.js.jquery,
                 _("Show Duplicates")), loadCB=self._loadFinished)
-            self.updateTagsAndDeck()
+            self.updateTags()
             self.updateKeyboard()
         else:
             self.hideCompleters()
@@ -637,26 +638,16 @@ class Editor(object):
         self.note.fields[self.currentField] = html
         self.loadNote()
 
-    # Tag & deck handling
+    # Tag handling
     ######################################################################
 
-    def setupTagsAndDeck(self):
+    def setupTags(self):
         import aqt.tagedit
         g = QGroupBox(self.widget)
         g.setFlat(True)
         tb = QGridLayout()
         tb.setSpacing(12)
         tb.setMargin(6)
-        # deck
-        if self.addMode:
-            l = QLabel(_("Deck"))
-            tb.addWidget(l, 0, 0)
-            self.deck = aqt.tagedit.TagEdit(self.widget, type=1)
-            self.deck.connect(self.deck, SIGNAL("lostFocus"),
-                              self.saveTags)
-            tb.addWidget(self.deck, 0, 1)
-        else:
-            self.deck = None
         # tags
         l = QLabel(_("Tags"))
         tb.addWidget(l, 1, 0)
@@ -667,23 +658,9 @@ class Editor(object):
         g.setLayout(tb)
         self.outerLayout.addWidget(g)
 
-    def updateTagsAndDeck(self):
+    def updateTags(self):
         if self.tags.col != self.mw.col:
-            if self.deck:
-                self.deck.setCol(self.mw.col)
             self.tags.setCol(self.mw.col)
-        if self.addMode:
-            if self.mw.col.conf.get("addToCur", True):
-                if not self.deck.text():
-                    col = self.mw.col
-                    did = col.conf['curDeck']
-                    if col.decks.isDyn(did):
-                        did = 1
-                    self.deck.setText(self.mw.col.decks.nameOrNone(
-                        did) or _("Default"))
-            else:
-                self.deck.setText(self.mw.col.decks.nameOrNone(
-                    self.note.model()['did']) or _("Default"))
         if not self.tags.text() or not self.addMode:
             self.tags.setText(self.note.stringTags().strip())
 
@@ -697,17 +674,6 @@ class Editor(object):
 
     def saveAddModeVars(self):
         if self.addMode:
-            # save deck name
-            name = self.deck.text()
-            if not name.strip():
-                self.note.model()['did'] = 1
-            else:
-                did = self.mw.col.decks.id(name)
-                deck = self.mw.col.decks.get(did)
-                if deck['dyn']:
-                    did = 1
-                    showInfo(_("Using default deck instead of cram deck."))
-                self.note.model()['did'] = did
             # save tags to model
             m = self.note.model()
             m['tags'] = self.note.tags
@@ -715,8 +681,6 @@ class Editor(object):
 
     def hideCompleters(self):
         self.tags.hideCompleter()
-        if self.addMode:
-            self.deck.hideCompleter()
 
     # Format buttons
     ######################################################################

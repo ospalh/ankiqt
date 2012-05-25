@@ -10,16 +10,31 @@ from operator import itemgetter
 
 class StudyDeck(QDialog):
     def __init__(self, mw, names=None, accept=None, title=None,
-                 help="studydeck", parent=None):
+                 help="studydeck", current=None, cancel=True,
+                 parent=None, dyn=False, buttons=[]):
         QDialog.__init__(self, parent or mw)
         self.mw = mw
         self.form = aqt.forms.studydeck.Ui_Dialog()
         self.form.setupUi(self)
         self.form.filter.installEventFilter(self)
+        self.cancel = cancel
+        if not cancel:
+            self.form.buttonBox.removeButton(
+                self.form.buttonBox.button(QDialogButtonBox.Cancel))
+        if buttons:
+            for b in buttons:
+                self.form.buttonBox.addButton(b, QDialogButtonBox.ActionRole)
+        else:
+            b = QPushButton(_("Add"))
+            b.setShortcut(QKeySequence("Ctrl+N"))
+            b.setToolTip(_("Add New Deck (Ctrl+N)"))
+            self.form.buttonBox.addButton(b, QDialogButtonBox.ActionRole)
+            b.connect(b, SIGNAL("clicked()"), self.onAddDeck)
         if title:
             self.setWindowTitle(title)
         if not names:
-            names = sorted(self.mw.col.decks.allNames())
+            names = sorted(self.mw.col.decks.allNames(dyn=dyn))
+            current = self.mw.col.decks.current()['name']
         self.origNames = names
         self.name = None
         self.ok = self.form.buttonBox.addButton(
@@ -31,7 +46,12 @@ class StudyDeck(QDialog):
         self.connect(self.form.filter,
                      SIGNAL("textEdited(QString)"),
                      self.redraw)
-        self.redraw("")
+        self.connect(self.form.list,
+                     SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
+                     self.accept)
+        self.show()
+        # redraw after show so position at center correct
+        self.redraw("", current)
         self.exec_()
 
     def eventFilter(self, obj, evt):
@@ -52,11 +72,17 @@ class StudyDeck(QDialog):
                 return True
         return False
 
-    def redraw(self, filt):
+    def redraw(self, filt, focus=None):
         self.names = [n for n in self.origNames if self._matches(n, filt)]
-        self.form.list.clear()
-        self.form.list.addItems(self.names)
-        self.form.list.setCurrentRow(0)
+        l = self.form.list
+        l.clear()
+        l.addItems(self.names)
+        if focus in self.names:
+            idx = self.names.index(focus)
+        else:
+            idx = 0
+        l.setCurrentRow(idx)
+        l.scrollToItem(l.item(idx), QAbstractItemView.PositionAtCenter)
 
     def _matches(self, name, filt):
         name = name.lower()
@@ -70,5 +96,21 @@ class StudyDeck(QDialog):
         return True
 
     def accept(self):
+        row = self.form.list.currentRow()
+        if row < 0:
+            showInfo(_("Please select something."))
+            return
         self.name = self.names[self.form.list.currentRow()]
         QDialog.accept(self)
+
+    def reject(self):
+        if not self.cancel:
+            return self.accept()
+        QDialog.reject(self)
+
+    def onAddDeck(self):
+        n = getOnlyText(_("New deck name:"), default=self.form.filter.text())
+        if n:
+            self.mw.col.decks.id(n)
+            self.name = n
+            QDialog.accept(self)

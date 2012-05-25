@@ -5,7 +5,7 @@
 from aqt.qt import *
 import aqt
 from anki.utils import ids2str
-from aqt.utils import showInfo, showWarning, openHelp, getOnlyText
+from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser
 from operator import itemgetter
 
 class DeckConf(QDialog):
@@ -13,6 +13,8 @@ class DeckConf(QDialog):
         QDialog.__init__(self, mw)
         self.mw = mw
         self.deck = self.mw.col.decks.current()
+        # context-sensitive extras like deck:foo
+        self.search = search
         self.form = aqt.forms.dyndconf.Ui_Dialog()
         self.form.setupUi(self)
         if first:
@@ -27,37 +29,89 @@ class DeckConf(QDialog):
                      SIGNAL("helpRequested()"),
                      lambda: openHelp("cramming"))
         self.setWindowTitle(_("Options for %s") % self.deck['name'])
-        self.setupCombos()
+        self.setupExamples()
+        self.setupOrder()
         self.loadConf()
-        if first and search:
-            self.form.search.setText(search)
+        self.show()
+        if first:
+            self.form.examples.showPopup()
         self.exec_()
 
-    def setupCombos(self):
+    def setupOrder(self):
+        import anki.consts as cs
+        self.form.order.addItems(cs.dynOrderLabels().values())
+
+    def setupExamples(self):
         import anki.consts as cs
         f = self.form
-        f.order.addItems(cs.dynOrderLabels().values())
+        d = self.dynExamples = cs.dynExamples()
+        f.examples.addItems([x[0] for x in d])
+        self.connect(f.examples, SIGNAL("activated(int)"),
+                     self.onExample)
+        # we'll need to reset whenever something is changed
+        self.ignoreChange = False
+        def onChange(*args):
+            if self.ignoreChange:
+                return
+            f.examples.setCurrentIndex(0)
+        c = self.connect
+        c(f.steps, SIGNAL("textEdited(QString)"), onChange)
+        c(f.search, SIGNAL("textEdited(QString)"), onChange)
+        c(f.order, SIGNAL("activated(int)"), onChange)
+        c(f.limit, SIGNAL("valueChanged(int)"), onChange)
+        c(f.stepsOn, SIGNAL("stateChanged(int)"), onChange)
+        c(f.resched, SIGNAL("stateChanged(int)"), onChange)
+
+    def onExample(self, idx):
+        if idx == 0:
+            return
+        p = self.dynExamples[idx][1]
+        f = self.form
+        self.ignoreChange = True
+        search = [p['search']]
+        if self.search:
+            search.append(self.search)
+        f.search.setText(" ".join(search))
+        f.order.setCurrentIndex(p['order'])
+        f.resched.setChecked(p.get("resched", True))
+        if p.get("steps"):
+            f.steps.setText(p['steps'])
+            f.stepsOn.setChecked(True)
+        else:
+            f.steps.setText("1 10")
+            f.stepsOn.setChecked(False)
+        f.limit.setValue(1000)
+        self.ignoreChange = False
 
     def loadConf(self):
         f = self.form
         d = self.deck
-        f.search.setText(d['search'])
-        f.steps.setText(self.listToUser(d['delays']))
-        f.order.setCurrentIndex(d['order'])
-        f.limit.setValue(d['limit'])
-        f.fmult.setValue(d['fmult']*100)
+        search, limit, order = d['terms'][0]
+        f.search.setText(search)
+        if d['delays']:
+            f.steps.setText(self.listToUser(d['delays']))
+            f.stepsOn.setChecked(True)
+        else:
+            f.steps.setText("1 10")
+            f.stepsOn.setChecked(False)
+        f.resched.setChecked(d['resched'])
+        f.order.setCurrentIndex(order)
+        f.limit.setValue(limit)
 
     def saveConf(self):
         f = self.form
         d = self.deck
-        steps = self.userToList(f.steps)
-        if not steps:
-            return
-        d['delays'] = steps
-        d['search'] = f.search.text()
-        d['order'] = f.order.currentIndex()
-        d['limit'] = f.limit.value()
-        d['fmult'] = f.fmult.value() / 100.0
+        d['delays'] = None
+        if f.stepsOn.isChecked():
+            steps = self.userToList(f.steps)
+            if steps:
+                d['delays'] = steps
+        else:
+            d['delays'] = None
+        d['terms'][0] = [f.search.text(),
+                         f.limit.value(),
+                         f.order.currentIndex()]
+        d['resched'] = f.resched.isChecked()
         self.mw.col.decks.save(d)
         return True
 
@@ -68,7 +122,11 @@ class DeckConf(QDialog):
     def accept(self):
         if not self.saveConf():
             return
-        self.mw.col.sched.rebuildDyn()
+        if not self.mw.col.sched.rebuildDyn():
+            if askUser(_("""\
+The provided search did not match any cards. Would you like to revise \
+it?""")):
+                return
         self.mw.reset()
         QDialog.accept(self)
 
