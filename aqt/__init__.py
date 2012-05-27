@@ -7,7 +7,7 @@ import locale, gettext
 import anki.lang
 from anki.consts import HELP_SITE as appHelpSite
 
-appVersion="2.0-beta13"
+appVersion="2.0-beta15"
 appWebsite="http://ankisrs.net/"
 appChanges="http://ankisrs.net/docs/dev/changes.html"
 appDonate="http://ankisrs.net/support/"
@@ -30,10 +30,11 @@ except ImportError, e:
 class DialogManager(object):
 
     def __init__(self):
-        from aqt import addcards, browser
+        from aqt import addcards, browser, editcurrent
         self._dialogs = {
             "AddCards": [addcards.AddCards, None],
             "Browser": [browser.Browser, None],
+            "EditCurrent": [editcurrent.EditCurrent, None],
         }
 
     def open(self, name, *args):

@@ -54,13 +54,13 @@ class AnkiQt(QMainWindow):
         self.hideSchemaMsg = False
         self.setupKeys()
         self.setupThreads()
+        self.setupSystemSpecific()
         self.setupMainWindow()
         self.setupStyle()
         self.setupProxy()
         self.setupMenus()
         self.setupProgress()
         self.setupErrorHandler()
-        self.setupSystemSpecific()
         self.setupSignals()
         self.setupAutoUpdate()
         self.setupSchema()
@@ -114,8 +114,13 @@ class AnkiQt(QMainWindow):
     def refreshProfilesList(self):
         f = self.profileForm
         f.profiles.clear()
-        f.profiles.addItems(self.pm.profiles())
-        f.profiles.setCurrentRow(0)
+        profs = self.pm.profiles()
+        f.profiles.addItems(profs)
+        try:
+            idx = profs.index(self.pm.name)
+        except:
+            idx = 0
+        f.profiles.setCurrentRow(idx)
 
     def onProfileRowChange(self, n):
         if n < 0:
@@ -157,6 +162,7 @@ class AnkiQt(QMainWindow):
             if not self.profileNameOk(name):
                 return
             self.pm.create(name)
+            self.pm.name = name
             self.refreshProfilesList()
 
     def onRenameProfile(self):
@@ -306,10 +312,15 @@ Are you sure?""")):
         runHook("colLoading", self.col)
         self.moveToState("overview")
 
-    def _overviewState(self, oldState):
+    def _selectedDeck(self):
         did = self.col.decks.selected()
         if not self.col.decks.nameOrNone(did):
             showInfo(_("Please select a deck."))
+            return
+        return self.col.decks.get(did)
+
+    def _overviewState(self, oldState):
+        if not self._selectedDeck():
             return self.moveToState("deckBrowser")
         self.col.reset()
         self.overview.show()
@@ -405,7 +416,7 @@ title="%s">%s</button>''' % (
         tweb = aqt.webview.AnkiWebView()
         tweb.setObjectName("toolbarWeb")
         tweb.setFocusPolicy(Qt.WheelFocus)
-        tweb.setFixedHeight(32)
+        tweb.setFixedHeight(32+self.fontHeightDelta)
         self.toolbar = aqt.toolbar.Toolbar(self, tweb)
         self.toolbar.draw()
         # main area
@@ -636,8 +647,7 @@ upload, overwriting any changes either here or on AnkiWeb. Proceed?""")):
         aqt.dialogs.open("Browser", self)
 
     def onEditCurrent(self):
-        from aqt.editcurrent import EditCurrent
-        EditCurrent(self)
+        aqt.dialogs.open("EditCurrent", self)
 
     def onDeckConf(self, deck=None):
         if not deck:
@@ -654,6 +664,16 @@ upload, overwriting any changes either here or on AnkiWeb. Proceed?""")):
         self.moveToState("overview")
 
     def onStats(self):
+        deck = self._selectedDeck()
+        if not deck:
+            return
+        if deck['dyn']:
+            showInfo(_("""\
+As cards are removed from a filtered deck as they are answered, viewing the \
+statistics of a filtered deck will only show you reviews for cards with \
+multiple steps. To get an accurate report, please empty the filtered deck \
+and check the statistics for a home deck instead."""))
+            return
         aqt.stats.DeckStats(self)
 
     def onPrefs(self):
@@ -959,6 +979,15 @@ will be lost. Continue?"""))
     ##########################################################################
 
     def setupSystemSpecific(self):
+        # use system font for webviews
+        f = QFontInfo(self.font())
+        ws = QWebSettings.globalSettings()
+        self.fontHeight = f.pixelSize()
+        self.fontFamily = f.family()
+        self.fontHeightDelta = max(0, self.fontHeight - 13)
+        ws.setFontFamily(QWebSettings.StandardFont, self.fontFamily)
+        ws.setFontSize(QWebSettings.DefaultFontSize, self.fontHeight)
+        # mac tweaks
         addHook("macLoadEvent", self.onMacLoad)
         if isMac:
             qt_mac_set_menubar_icons(False)
