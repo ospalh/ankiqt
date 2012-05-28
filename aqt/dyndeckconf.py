@@ -34,7 +34,7 @@ class DeckConf(QDialog):
         self.setupOrder()
         self.loadConf()
         if not isMac and not isWin:
-            delay = QTimer.singleShot(150, self.unsetFirst)
+            mw.progress.timer(200, self.unsetFirst, False)
         self.show()
         if self.first:
             self.form.examples.showPopup()
