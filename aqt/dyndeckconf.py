@@ -4,7 +4,7 @@
 
 from aqt.qt import *
 import aqt
-from anki.utils import ids2str
+from anki.utils import ids2str, isLinux
 from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser
 from operator import itemgetter
 
@@ -14,10 +14,11 @@ class DeckConf(QDialog):
         self.mw = mw
         self.deck = self.mw.col.decks.current()
         # context-sensitive extras like deck:foo
+        self.first = first
         self.search = search
         self.form = aqt.forms.dyndconf.Ui_Dialog()
         self.form.setupUi(self)
-        if first:
+        if self.first:
             label = _("Build")
         else:
             label = _("Rebuild")
@@ -32,10 +33,20 @@ class DeckConf(QDialog):
         self.setupExamples()
         self.setupOrder()
         self.loadConf()
+        if isLinux:
+            delay = QTimer.singleShot(150, self.unsetFirst)
         self.show()
-        if first:
+        if self.first:
             self.form.examples.showPopup()
         self.exec_()
+
+    def moveEvent(self, event):
+        if self.first and isLinux:
+            self.form.examples.showPopup()
+        return QDialog.moveEvent(self, event)
+
+    def unsetFirst(self):
+        self.first = False
 
     def setupOrder(self):
         import anki.consts as cs
