@@ -4,7 +4,7 @@
 
 from aqt.qt import *
 import aqt
-from anki.utils import ids2str, isLinux
+from anki.utils import ids2str, isMac, isWin
 from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser
 from operator import itemgetter
 
@@ -33,7 +33,7 @@ class DeckConf(QDialog):
         self.setupExamples()
         self.setupOrder()
         self.loadConf()
-        if isLinux:
+        if not isMac and not isWin:
             delay = QTimer.singleShot(150, self.unsetFirst)
         self.show()
         if self.first:
@@ -41,7 +41,7 @@ class DeckConf(QDialog):
         self.exec_()
 
     def moveEvent(self, event):
-        if self.first and isLinux:
+        if self.first and not isMac and not isWin:
             self.form.examples.showPopup()
         return QDialog.moveEvent(self, event)
 
