@@ -18,8 +18,8 @@ from aqt.webview import AnkiWebView
 from aqt.toolbar import Toolbar
 from anki.consts import *
 
-COLOUR_SUSPENDED = "#fffff0"
-COLOUR_MARKED = "#eeeeff"
+COLOUR_SUSPENDED = "#ff0"
+COLOUR_MARKED = "#aaf"
 
 # fixme: need to refresh after undo
 
@@ -470,6 +470,8 @@ class Browser(QMainWindow):
         if not self.model.cards:
             # no row change will fire
             self.onRowChanged(None, None)
+        elif self.mw.state == "review":
+            self.focusCid(self.mw.reviewer.card.id)
 
     def updateTitle(self):
         selected = len(self.form.tableView.selectionModel().selectedRows())
@@ -1161,8 +1163,8 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
         self.mw.progress.start()
         res = self.mw.col.findDupes(fname, search)
         t = "<html><body>"
-        t += _("Found %d duplicates in %d notes.") % (
-            sum(len(r[1]) for r in res), len(res))
+        t += _("Found %(a)d duplicates in %(b)d notes.") % dict(
+            a=sum(len(r[1]) for r in res), b=len(res))
         t += "<p><ol>"
         for val, nids in res:
             t += '<li><a href="%s">%s</a>: %s</a>' % (
@@ -1240,6 +1242,13 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
     def onCardList(self):
         self.form.tableView.setFocus()
 
+    def focusCid(self, cid):
+        try:
+            row = self.model.cards.index(cid)
+        except:
+            return
+        self.form.tableView.selectRow(row)
+
 # Change model dialog
 ######################################################################
 
@@ -1269,6 +1278,10 @@ class ChangeModel(QDialog):
         self.tlayout.setMargin(0)
         self.twidg = None
         self.form.templateMap.setLayout(self.tlayout)
+        if self.style().objectName() == "gtk+":
+            # gtk+ requires margins in inner layout
+            self.form.verticalLayout_2.setContentsMargins(0, 11, 0, 0)
+            self.form.verticalLayout_3.setContentsMargins(0, 11, 0, 0)
         # model chooser
         import aqt.modelchooser
         self.oldModel = self.browser.col.models.get(
