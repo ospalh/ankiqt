@@ -62,7 +62,12 @@ or importing text files."""))
 
     def _selDeck(self, did):
         self.mw.col.decks.select(did)
-        self.mw.onOverview()
+        # New, no overview
+        self.mw.col.reset()
+        self.mw.col.startTimebox()
+        self.mw.moveToState("review")
+        ## old, overview
+        # self.mw.onOverview()
 
     # HTML generation
     ##########################################################################
