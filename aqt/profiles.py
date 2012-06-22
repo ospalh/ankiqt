@@ -196,14 +196,11 @@ computer."""))
             s = QSettings(QSettings.UserScope, "Microsoft", "Windows")
             s.beginGroup("CurrentVersion/Explorer/Shell Folders")
             d = s.value("Personal")
-            # Just to make sure that i don't accidentally mess up my live collection with my test version. Not intended as a patch for the live version.
-
-            # return os.path.join(d, "Anki")
-            return os.path.join(d, "Anki-tests")
+            return os.path.join(d, "Anki")
         elif isMac:
-            return os.path.expanduser("~/Documents/Anki-tests")
+            return os.path.expanduser("~/Documents/Anki")
         else:
-            return os.path.expanduser("~/Anki-tests")
+            return os.path.expanduser("~/Anki")
 
     def _loadMeta(self):
         path = os.path.join(self.base, "prefs.db")
