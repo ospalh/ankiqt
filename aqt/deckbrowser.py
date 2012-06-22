@@ -56,13 +56,40 @@ or importing text files."""))
             self._dragDeckOnto(draggedDeckDid, ontoDeckDid)
 
     def _keyHandler(self, evt):
-        key = unicode(evt.text())
-        if key == "f":
+        if evt.key() == Qt.Key_Up:
+            self._previousDeck()
+        if evt.key() == Qt.Key_Down:
+            self._nextDeck()
+        if evt.key() == Qt.Key_Return:
+            self.mw.onOverview()
+        key_text = unicode(evt.text())
+        if key_text == "f":
             self.mw.onCram()
 
     def _selDeck(self, did):
         self.mw.col.decks.select(did)
         self.mw.onOverview()
+
+    def _previousDeck(self):
+        try:
+            previous_did = int(self.web.eval("previousDid()"))
+        except (ValueError, TypeError):
+            # Most likely reason: first deck. Then prevousDid() returns
+            # u''.
+            return
+        current_did = self.mw.col.conf['curDeck']
+        self.mw.col.decks.select(previous_did)
+        self.web.eval('moveCurrentClass({0}, {1})'.format(current_did, previous_did))
+
+    def _nextDeck(self):
+        try:
+            next_did = int(self.web.eval("nextDid()"))
+        except (ValueError, TypeError):
+            # last deck
+            return
+        current_did = self.mw.col.conf['curDeck']
+        self.mw.col.decks.select(next_did)
+        self.web.eval("moveCurrentClass({0}, {1})".format(current_did, next_did))
 
     # HTML generation
     ##########################################################################
@@ -111,6 +138,19 @@ body { margin: 1em; -webkit-user-select: none; }
             drop: handleDropEvent,
             hoverClass: 'drag-hover',
         });
+    }
+
+    function moveCurrentClass(from_id, to_id) {
+        $(document.getElementById(to_id)).addClass("current");
+        $(document.getElementById(from_id)).removeClass( "current");
+    }
+
+    function previousDid() {
+          return document.getElementsByClassName("current")[0].previousSibling.id;
+    }
+
+    function nextDid() {
+         return document.getElementsByClassName("current")[0].nextSibling.id;
     }
 
     function handleDropEvent(event, ui) {
