@@ -2,5 +2,6 @@
 *.pyc
 *\#
 *~
+.#*
 /aqt/forms
 /aqt/locale
