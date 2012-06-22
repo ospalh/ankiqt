@@ -61,12 +61,14 @@ or importing text files."""))
         if evt.key() == Qt.Key_Down:
             self._nextDeck()
         if evt.key() == Qt.Key_Return:
-            self.mw.onOverview()
+            self._selDeck()
         key_text = unicode(evt.text())
         if key_text == "f":
             self.mw.onCram()
 
-    def _selDeck(self, did):
+    def _selDeck(self, did=None):
+        if not did:
+            did = self.mw.col.conf['curDeck']
         self.mw.col.decks.select(did)
         # New, no overview
         self.mw.col.reset()
