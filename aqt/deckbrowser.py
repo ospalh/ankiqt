@@ -81,7 +81,10 @@ body { margin: 1em; -webkit-user-select: none; }
 .current { background-color: #e7e7e7; }
 .decktd { min-width: 15em; }
 .count { width: 6em; text-align: right; }
-""" % dict(width=_dragIndicatorBorderWidth)
+
+%(qtip)s
+""" % dict(width=_dragIndicatorBorderWidth, qtip=anki.js.qtip_css) 
+    
 
     _body = """
 <center>
@@ -119,6 +122,27 @@ body { margin: 1em; -webkit-user-select: none; }
 
         py.link("drag:" + draggedDeckId + "," + ontoDeckId);
     }
+
+    function add_qtips(){
+        $('td.duelrn').qtip({
+            tip:true,
+            position:{
+                target: 'mouse',
+                my: 'right center',
+                at: 'top left',
+                adjust: {x: -10, y: -10}
+            },
+            content: {
+                text: function() {
+                    var dls = $(this).attr('title').split(" ");
+                    return   '<font color=#007700>' + dls[0] +  '</font> + <font color=#990000> ' + dls[1] + '</font>';
+                }
+            },
+            show: 'mouseover',
+            hide: 'mouseout'
+
+        })
+    }
 </script>
 """
 
@@ -126,7 +150,8 @@ body { margin: 1em; -webkit-user-select: none; }
         css = self.mw.sharedCSS + self._css
         tree = self._renderDeckTree(self.mw.col.sched.deckDueTree())
         self.web.stdHtml(self._body%dict(tree=tree), css=css,
-                         js=anki.js.jquery+anki.js.ui)
+                         js=anki.js.jquery+anki.js.ui+anki.js.qtip_js)
+        self.web.eval("add_qtips()")
         self._drawButtons()
 
     def _renderDeckTree(self, nodes, depth=0):
@@ -148,7 +173,7 @@ body { margin: 1em; -webkit-user-select: none; }
 
     def _deckRow(self, node, depth):
         name, did, due, lrn, new, children = node
-        due += lrn
+        # due += lrn
         def indent():
             return "&nbsp;"*6*depth
         if did == self.mw.col.conf['curDeck']:
@@ -167,8 +192,10 @@ body { margin: 1em; -webkit-user-select: none; }
             if cnt >= 1000:
                 cnt = "1000+"
             return "<font color='%s'>%s</font>" % (colour, cnt)
-        buf += "<td align=right>%s</td><td align=right>%s</td>" % (
-            nonzeroColour(due, "#007700"),
+        buf += '<td align=right class="duelrn" title="%d %d">%s</td>'\
+            '<td align=right>%s</td>' % (
+            due, lrn,
+            nonzeroColour(due + lrn, "#007700"),
             nonzeroColour(new, "#000099"))
         # options
         buf += "<td align=right class=opts>%s</td></tr>" % self.mw.button(
