@@ -258,7 +258,7 @@ class DataModel(QAbstractTableModel):
 
     def nextDue(self, c, index):
         if c.odid:
-            return _("(cram)")
+            return _("(filtered)")
         elif c.queue == 0:
             return str(c.due)
         elif c.queue == 1:
@@ -379,7 +379,7 @@ class Browser(QMainWindow):
         self.changeDeckCut = QShortcut(QKeySequence("Ctrl+D"), self)
         c(self.changeDeckCut, SIGNAL("activated()"), self.setDeck)
         # add/remove tags
-        self.tagCut1 = QShortcut(QKeySequence("Ctrl+T"), self)
+        self.tagCut1 = QShortcut(QKeySequence("Ctrl+Shift+T"), self)
         c(self.tagCut1, SIGNAL("activated()"), self.addTags)
         self.tagCut2 = QShortcut(QKeySequence("Ctrl+Alt+T"), self)
         c(self.tagCut2, SIGNAL("activated()"), self.deleteTags)
@@ -813,7 +813,7 @@ border: 1px solid #000; padding: 3px; '>%s</div>""" % rep
             cnt += 1
             s += "<tr><td>%s</td>" % time.strftime(_("<b>%Y-%m-%d</b> @ %H:%M"),
                                                    time.localtime(date))
-            tstr = [_("Learn"), _("Review"), _("Relearn"), _("Cram"),
+            tstr = [_("Learn"), _("Review"), _("Relearn"), _("Filtered"),
                     _("Resched")][type]
             import anki.stats as st
             fmt = "<span style='color:%s'>%s</span>"
@@ -1421,7 +1421,7 @@ Are you sure you want to continue?""")):
         b.onSearch(reset=False)
         b.model.endReset()
         b.mw.progress.finish()
-        b.mw.requireReset()
+        b.mw.reset()
         self.cleanup()
 
     def onHelp(self):
@@ -1458,7 +1458,7 @@ class BrowserToolbar(Toolbar):
         right += borderImg("setDeck", "deck16", False, _("Change Deck"),
                            _("Move To Deck (Ctrl+D)"))
         right += borderImg("addtag", "addtag16", False, _("Add Tags"),
-                       shortcut(_("Bulk Add Tags (Ctrl+T)")))
+                       shortcut(_("Bulk Add Tags (Ctrl+Shift+T)")))
         right += borderImg("deletetag", "deletetag16", False,
                            _("Remove Tags"), shortcut(_(
                                "Bulk Remove Tags (Ctrl+Alt+T)")))

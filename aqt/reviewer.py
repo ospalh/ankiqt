@@ -97,10 +97,12 @@ class Reviewer(object):
             playFromText(c.q())
         elif self.state == "answer":
             txt = ""
-            if self.mw.col.conf.get("replayBoth", False):
+            exclude = c.q()
+            if self._replayq(c):
                 txt = c.q()
+                exclude = ""
             txt += c.a()
-            playFromText(txt)
+            playFromText(txt, exclude)
 
     # Initializing the webview
     ##########################################################################
@@ -199,6 +201,11 @@ The front of this card is empty. Please run Tools>Maintenance>Empty Cards.""")
     def _autoplay(self, card):
         return self.mw.col.decks.confForDid(
             self.card.odid or self.card.did)['autoplay']
+
+    def _replayq(self, card):
+        return self.mw.col.decks.confForDid(
+            # self.card.odid or self.card.did).get('replayq', True)
+            self.card.odid or self.card.did).get('replayq', False)
 
     def _toggleStar(self):
         self.web.eval("_toggleStar(%s);" % json.dumps(
@@ -369,6 +376,8 @@ Please run Tools>Maintenance>Empty Cards""")
         given = self.typedAnswer
         # compare with typed answer
         res = self.correct(cor, given)
+        if cor != given:
+            res += "<br>" + _("Correct answer was:") + "<br>" + cor
         # and update the type answer area
         return re.sub(self.typeAnsPat, """
 <span id=coran  style="line-height: 1.5; font-family: '%s'; font-size: %spx">%s</span>""" %
