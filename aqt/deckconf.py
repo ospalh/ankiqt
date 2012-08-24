@@ -162,6 +162,8 @@ class DeckConf(QDialog):
         f.lrnSteps.setText(self.listToUser(c['delays']))
         f.lrnGradInt.setValue(c['ints'][0])
         f.lrnEasyInt.setValue(c['ints'][1])
+        f.lrnEasyInt.setValue(c['ints'][1])
+        f.lrnFactor.setValue(c['initialFactor']/10.0)
         f.newOrder.setCurrentIndex(c['order'])
         f.newPerDay.setValue(c['perDay'])
         f.separate.setChecked(c['separate'])
@@ -172,7 +174,7 @@ class DeckConf(QDialog):
         f.revSpace.setValue(c['fuzz']*100)
         f.revMinSpace.setValue(c['minSpace'])
         f.easyBonus.setValue(c['ease4']*100)
-        f.fi1.setValue(c['ivlFct'])
+        f.fi1.setValue(c['ivlFct']*100)
         f.maxIvl.setValue(c['maxIvl'])
         f.revplim.setText(self.parentLimText('rev'))
         # lapse
@@ -240,6 +242,7 @@ class DeckConf(QDialog):
         self.updateList(c, 'delays', f.lrnSteps)
         c['ints'][0] = f.lrnGradInt.value()
         c['ints'][1] = f.lrnEasyInt.value()
+        c['initialFactor'] = f.lrnFactor.value()*10
         c['order'] = f.newOrder.currentIndex()
         c['perDay'] = f.newPerDay.value()
         c['separate'] = f.separate.isChecked()
@@ -249,7 +252,7 @@ class DeckConf(QDialog):
         c['fuzz'] = f.revSpace.value()/100.0
         c['minSpace'] = f.revMinSpace.value()
         c['ease4'] = f.easyBonus.value()/100.0
-        c['ivlFct'] = f.fi1.value()
+        c['ivlFct'] = f.fi1.value()/100.0
         c['maxIvl'] = f.maxIvl.value()
         # lapse
         c = self.conf['lapse']

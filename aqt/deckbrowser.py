@@ -5,7 +5,7 @@
 from aqt.qt import *
 from aqt.utils import askUser, getOnlyText, openLink, showWarning, showInfo, \
     shortcut
-from anki.utils import isMac, ids2str
+from anki.utils import isMac, ids2str, fmtTimeSpan
 import anki.js
 from anki.errors import DeckRenameError
 import aqt
@@ -122,6 +122,9 @@ body { margin: 1em; -webkit-user-select: none; }
 <table cellspacing=0 cellpading=3>
 %(tree)s
 </table>
+
+<br>
+%(stats)s
 </center>
 <script>
     $( init );
@@ -172,9 +175,20 @@ body { margin: 1em; -webkit-user-select: none; }
     def _renderPage(self):
         css = self.mw.sharedCSS + self._css
         tree = self._renderDeckTree(self.mw.col.sched.deckDueTree())
-        self.web.stdHtml(self._body%dict(tree=tree), css=css,
+        stats = self._renderStats()
+        self.web.stdHtml(self._body%dict(tree=tree, stats=stats), css=css,
                          js=anki.js.jquery+anki.js.ui)
         self._drawButtons()
+
+    def _renderStats(self):
+        cards, thetime = self.mw.col.db.first("""
+select count(), sum(time)/1000 from revlog
+where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
+        cards = cards or 0
+        thetime = thetime or 0
+        buf = _("Studied %(a)d cards in %(b)s today.") % dict(
+            a=cards, b=fmtTimeSpan(thetime))
+        return buf
 
     def _renderDeckTree(self, nodes, depth=0):
         if not nodes:
@@ -243,6 +257,8 @@ body { margin: 1em; -webkit-user-select: none; }
         m = QMenu(self.mw)
         a = m.addAction(_("Rename"))
         a.connect(a, SIGNAL("triggered()"), lambda did=did: self._rename(did))
+        a = m.addAction(_("Options"))
+        a.connect(a, SIGNAL("triggered()"), lambda did=did: self._options(did))
         a = m.addAction(_("Delete"))
         a.connect(a, SIGNAL("triggered()"), lambda did=did: self._delete(did))
         m.exec_(QCursor.pos())
@@ -255,13 +271,14 @@ body { margin: 1em; -webkit-user-select: none; }
         newName = newName.replace("'", "").replace('"', "")
         if not newName or newName == oldName:
             return
-
         try:
             self.mw.col.decks.rename(deck, newName)
         except DeckRenameError, e:
             return showWarning(e.description)
-
         self.show()
+
+    def _options(self, did):
+        self.mw.onDeckConf(self.mw.col.decks.get(did))
 
     def _dragDeckOnto(self, draggedDeckDid, ontoDeckDid):
         try:

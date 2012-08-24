@@ -112,7 +112,7 @@ class Reviewer(object):
 var ankiPlatform = "desktop";
 var typeans;
 function _updateQA (q, answerMode, klass) {
-    $("#qa")[0].innerHTML = q;
+    $("#qa").html(q);
     typeans = document.getElementById("typeans");
     if (typeans) {
         typeans.focus();
@@ -680,9 +680,13 @@ function showAnswer(txt) {
 
     def onDelete(self):
         self.mw.checkpoint(_("Delete"))
+        cnt = len(self.card.note().cards())
         self.mw.col.remNotes([self.card.note().id])
         self.mw.reset()
-        tooltip(_("Note and its cards deleted."))
+        tooltip(ngettext(
+            "Note and its %d card deleted.",
+            "Note and its %d cards deleted.",
+            cnt) % cnt)
 
     def onBuryNote(self):
         self.mw.checkpoint(_("Bury"))

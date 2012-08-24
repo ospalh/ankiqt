@@ -7,7 +7,7 @@ from aqt.qt import *
 import time, types, sys, re
 from operator import attrgetter, itemgetter
 import anki, anki.utils, aqt.forms
-from anki.utils import fmtTimeSpan, ids2str, stripHTMLMedia, isWin, intTime
+from anki.utils import fmtTimeSpan, ids2str, stripHTMLMedia, isWin, intTime, isMac
 from aqt.utils import saveGeom, restoreGeom, saveSplitter, restoreSplitter, \
     saveHeader, restoreHeader, saveState, restoreState, applyStyles, getTag, \
     showInfo, askUser, tooltip, openHelp, showWarning, shortcut
@@ -387,6 +387,7 @@ class Browser(QMainWindow):
         c(self.tagCut3, SIGNAL("activated()"), self.onMark)
         # add-on hook
         runHook('browser.setupMenus', self)
+        self.mw.maybeHideAccelerators(self)
 
     def updateFont(self):
         self.form.tableView.verticalHeader().setDefaultSectionSize(
@@ -417,7 +418,10 @@ class Browser(QMainWindow):
                 item = self.form.tree.currentItem()
                 self.onTreeClick(item, 0)
         elif self.mw.app.focusWidget() == self.form.tableView:
-            if evt.key() in (Qt.Key_Delete,Qt.Key_Backspace):
+            keys = [Qt.Key_Delete]
+            if isMac:
+                keys.append(Qt.Key_Backspace)
+            if evt.key() in keys:
                 self.deleteNotes()
 
     def setupColumns(self):
@@ -898,10 +902,13 @@ where id in %s""" % ids2str(sf))
     ######################################################################
 
     def deleteNotes(self):
+        nids = self.selectedNotes()
+        if not nids:
+            return
         self.mw.checkpoint(_("Delete Notes"))
         self.model.beginReset()
         oldRow = self.form.tableView.selectionModel().currentIndex().row()
-        self.col.remNotes(self.selectedNotes())
+        self.col.remNotes(nids)
         self.onSearch(reset=False)
         if len(self.model.cards):
             new = min(oldRow, len(self.model.cards) - 1)
@@ -1000,9 +1007,9 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
 
     def reposition(self):
         cids = self.selectedCards()
-        cids = self.col.db.list(
+        cids2 = self.col.db.list(
             "select id from cards where type = 0 and id in " + ids2str(cids))
-        if not cids:
+        if not cids2:
             return showInfo(_("Only new cards can be repositioned."))
         d = QDialog(self)
         d.setWindowModality(Qt.WindowModal)

@@ -58,6 +58,7 @@ class ProfileManager(object):
         self.name = None
         # instantiate base folder
         self.base = base or self._defaultBase()
+        self.ensureLocalFS()
         self.ensureBaseExists()
         # load metadata
         self.firstRun = self._loadMeta()
@@ -71,6 +72,15 @@ class ProfileManager(object):
     # Base creation
     ######################################################################
 
+    def ensureLocalFS(self):
+        if self.base.startswith("\\\\"):
+            QMessageBox.critical(
+                None, "Error", """\
+To use Anki on a network share, the share must be mapped to a local drive \
+letter. Please see the 'File Locations' section of the manual for more \
+information.""")
+            raise Exception("unc")
+
     def ensureBaseExists(self):
         try:
             self._ensureExists(self.base)
@@ -81,39 +91,6 @@ class ProfileManager(object):
 Anki can't write to the harddisk. Please see the \
 documentation for information on using a flash drive.""")
             raise
-
-    # Pid checking
-    ######################################################################
-
-    def checkPid(self):
-        p = os.path.join(self.base, "pid")
-        # check if an existing instance is running
-        if os.path.exists(p):
-            pid = int(open(p).read())
-            exists = False
-            if isWin:
-                # no posix on windows, sigh
-                from win32process import EnumProcesses as enum
-                if pid in enum():
-                    exists = True
-            else:
-                try:
-                    os.kill(pid, 0)
-                    exists = True
-                except OSError:
-                    pass
-            if exists:
-                QMessageBox.warning(
-                    None, "Error", _("""\
-Anki is already running. Please close the existing copy or restart your \
-computer."""))
-                raise Exception("Already running")
-        # write out pid to the file
-        open(p, "w").write(str(os.getpid()))
-        # add handler to cleanup on exit
-        def cleanup():
-            os.unlink(p)
-        atexit.register(cleanup)
 
     # Profile load/save
     ######################################################################
@@ -156,14 +133,18 @@ computer."""))
         self.db.commit()
 
     def rename(self, name):
+        oldName = self.name
         oldFolder = self.profileFolder()
+        self.name = name
+        newFolder = self.profileFolder()
+        if os.path.exists(newFolder):
+            showWarning(_("Folder already exists."))
+            self.name = oldName
+            return
         # update name
         self.db.execute("update profiles set name = ? where name = ?",
                         name.encode("utf8"), self.name.encode("utf-8"))
         # rename folder
-        self.name = name
-        newFolder = self.profileFolder()
-        os.rmdir(newFolder)
         os.rename(oldFolder, newFolder)
         self.db.commit()
 
@@ -227,13 +208,13 @@ create table if not exists profiles
         if self.firstRun:
             self.create(_("User 1"))
             p = os.path.join(self.base, "README.txt")
-            open(p, "w").write(_("""\
+            open(p, "w").write((_("""\
 This folder stores all of your Anki data in a single location,
 to make backups easy. To tell Anki to use a different location,
 please see:
 
 %s
-""") % (appHelpSite +  "#startupopts"))
+""") % (appHelpSite +  "#startupopts")).encode("utf8"))
 
     def _pwhash(self, passwd):
         return checksum(unicode(self.meta['id'])+unicode(passwd))

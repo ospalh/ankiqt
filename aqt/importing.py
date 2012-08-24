@@ -99,7 +99,7 @@ class ImportDialog(QDialog):
 By default, Anki will detect the character between fields, such as
 a tab, comma, and so on. If Anki is detecting the character incorrectly,
 you can enter it here. Use \\t to represent tab."""),
-                self, help="importing")
+                self, help="importing") or "\t"
         str = str.replace("\\t", "\t")
         str = str.encode("ascii")
         self.hideMapping()
@@ -249,6 +249,9 @@ def onImport(mw):
     if not file:
         return
     file = unicode(file)
+    importFile(mw, file)
+
+def importFile(mw, file):
     ext = os.path.splitext(file)[1]
     importer = None
     done = False
