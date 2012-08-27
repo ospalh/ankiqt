@@ -1,11 +1,12 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-import os, sys, optparse, atexit, __builtin__
+import os, sys, optparse, atexit, __builtin__, re
 from aqt.qt import *
 import locale, gettext
 import anki.lang
 from anki.consts import HELP_SITE as appHelpSite
+from anki.utils import isWin, isMac
 
 appVersion="2.0-beta19"
 appWebsite="http://ankisrs.net/"
@@ -105,41 +106,49 @@ class AnkiApp(QApplication):
 
     # Single instance support on Win32/Linux
     ##################################################
+    # Now single instance per base dir support. RAS 2012-08-24
 
-    KEY = "anki"
     TMOUT = 5000
 
-    def __init__(self, argv):
+    def __init__(self, argv, key_path):
         QApplication.__init__(self, argv)
         self._argv = argv
-        self._shmem = QSharedMemory(self.KEY)
+        self.key = os.path.join(key_path, 'ipc')
+        if isWin:
+#            self.key = \
+#                re.sub('^[a-zA-Z]:||\\\\', '@', self.key)
+            self.key = '\\\\pipe\\.\\' + self.key
+        self._shmem = QSharedMemory(self.key)
         self.alreadyRunning = self._shmem.attach()
 
-    def secondInstance(self):
+    def secondInstance(self, decks_to_load):
         if not self.alreadyRunning:
             # use a 1 byte shared memory instance to signal we exist
             if not self._shmem.create(1):
                 raise Exception("shared memory not supported")
-            atexit.register(self._shmem.detach)
+            QLocalServer.removeServer(self.key)
+            atexit.register(self._cleanup)
             # and a named pipe/unix domain socket for ipc
-            QLocalServer.removeServer(self.KEY)
             self._srv = QLocalServer(self)
             self.connect(self._srv, SIGNAL("newConnection()"), self.onRecv)
-            self._srv.listen(self.KEY)
+            self._srv.listen(self.key)
+            print 'key:', self.key
+            print 'server listens on:', self._srv.serverName()
             # if we were given a file on startup, send import it
         else:
-            # we accept only one command line argument. if it's missing, send
+            # Treat all remaining args as decks to load. If there are none, send
             # a blank screen to just raise the existing window
-            opts, args = parseArgs(self._argv)
-            buf = "raise"
-            if args and args[0]:
-                buf = os.path.abspath(args[0])
-            self.sendMsg(buf)
-            return True
+            if decks_to_load:
+                for deck_to_load in decks_to_load:
+                    self.sendMsg(os.path.abspath(deck_to_load))
+            else:
+                self.sendMsg('raise')
+        # Always return a Bolean
+        return self.alreadyRunning
 
     def sendMsg(self, txt):
         sock = QLocalSocket(self)
-        sock.connectToServer(self.KEY, QIODevice.WriteOnly)
+        sock.connectToServer(self.key, QIODevice.WriteOnly)
         if not sock.waitForConnected(self.TMOUT):
             raise Exception("existing instance not responding")
         sock.write(txt)
@@ -166,6 +175,12 @@ class AnkiApp(QApplication):
             return True
         return QApplication.event(self, evt)
 
+    def _cleanup(self):
+        self._shmem.detach()
+        self._srv.close()
+
+
+
 def parseArgs(argv):
     "Returns (opts, args)."
     parser = optparse.OptionParser()
@@ -184,17 +199,36 @@ def run():
         rd = os.path.abspath(moduleDir + "/../../..")
         QCoreApplication.setLibraryPaths([rd])
 
+    # parse args
+    # Move this before the creation of the app. Like that we can use
+    # the base dir as the key to the shared memory. Intended as a fix
+    # to issue #3210.
+    opts, args = parseArgs(sys.argv)
+    # Use abspath to avoid any disambiguation when we use this as the
+    # key for signaling/remote import. Also, set the default here
+    # already to make the key consistent.
+    from aqt.profiles import defaultBase
+    # Unroll. Looks like it is already unicode on Windows but not on Linux.
+    if not opts.base:
+        opts.base = defaultBase()
+    try:
+        opts.base = unicode(opts.base or defaultBase(),
+                            sys.getfilesystemencoding())
+    except TypeError:
+        # Already unicode.
+        pass
+    opts.base = os.path.abspath(opts.base)
+    opts.profile = unicode(opts.profile or "", sys.getfilesystemencoding())
+
     # create the app
-    app = AnkiApp(sys.argv)
+    # The opts.base is only used to attach to the shared memory at
+    # this time.
+    app = AnkiApp(sys.argv, opts.base)
     QCoreApplication.setApplicationName("Anki")
-    if app.secondInstance():
+    # Pass along the remaining args.
+    if app.secondInstance(args):
         # we've signaled the primary instance, so we should close
         return
-
-    # parse args
-    opts, args = parseArgs(sys.argv)
-    opts.base = unicode(opts.base or "", sys.getfilesystemencoding())
-    opts.profile = unicode(opts.profile or "", sys.getfilesystemencoding())
 
     # profile manager
     from aqt.profiles import ProfileManager
