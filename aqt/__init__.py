@@ -15,6 +15,7 @@ from aqt.qt import QApplication, QCoreApplication, QEvent, QIODevice, \
     SIGNAL
 import anki.lang
 from aqt import addcards, browser, editcurrent
+from anki.consts import HELP_SITE as appHelpSite
 from anki.utils import isMac
 
 

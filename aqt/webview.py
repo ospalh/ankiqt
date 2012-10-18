@@ -5,16 +5,17 @@
 import sys
 
 import pyqtconfig
-import pyqtSlot
+
+# IAR, set this before we import the rest.
+QtConfig = pyqtconfig.Configuration()
 
 from anki.utils import isMac, isWin
-from aqt.qt import QCursor, QKeySequence, QMenu, QObject, QPainter, QWebPage, \
-    QWebView, Qt, SIGNAL
+from aqt.qt import pyqtSlot, QCursor, QKeySequence, QMenu, QObject, QPainter, \
+    QWebPage, QWebView, Qt, SIGNAL
 from aqt.utils import openLink
-from aski.lang import _
+from anki.lang import _
 import anki.js
 
-QtConfig = pyqtconfig.Configuration()
 
 # Bridge for Qt<->JS
 ##########################################################################
