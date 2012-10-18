@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-import aqt
-from anki.utils import ids2str
-from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, shortcut
-from operator import itemgetter
 from anki.hooks import addHook, remHook
+from anki.lang import _
+from aqt.qt import QAbstractItemView, QDialog, QDialogButtonBox, QEvent, \
+    QKeySequence, QPushButton, Qt, SIGNAL
+from aqt.utils import getOnlyText, openHelp, shortcut, showInfo
+import aqt
+
 
 class StudyDeck(QDialog):
     def __init__(self, mw, names=None, accept=None, title=None,
@@ -99,7 +100,7 @@ class StudyDeck(QDialog):
         for c in filt:
             if c not in name:
                 return False
-            name = name[name.index(c)+1:]
+            name = name[name.index(c) + 1:]
         return True
 
     def onReset(self):

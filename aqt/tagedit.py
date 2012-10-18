@@ -1,8 +1,9 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-import re, sys
+import re
+from aqt.qt import QCompleter, QLineEdit, QStringListModel, Qt, SIGNAL
+
 
 class TagEdit(QLineEdit):
 
@@ -38,9 +39,9 @@ class TagEdit(QLineEdit):
         if not evt.text():
             # if it's a modifier, don't show
             return
-        if evt.key() not in (
-            Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Space,
-            Qt.Key_Tab, Qt.Key_Backspace, Qt.Key_Delete):
+        if evt.key() not in (Qt.Key_Enter, Qt.Key_Return,
+                             Qt.Key_Escape, Qt.Key_Space, Qt.Key_Tab,
+                             Qt.Key_Backspace, Qt.Key_Delete):
             self.showCompleter()
 
     def showCompleter(self):
@@ -54,6 +55,7 @@ class TagEdit(QLineEdit):
 
     def hideCompleter(self):
         self.completer.popup().hide()
+
 
 class TagCompleter(QCompleter):
 

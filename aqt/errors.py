@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
 import sys
+
+from aqt.qt import QObject, QTimer, SIGNAL
 from aqt.utils import showText, showWarning
+from anki.lang import _
+
 
 class ErrorHandler(QObject):
     "Catch stderr and write into buffer."

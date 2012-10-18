@@ -2,13 +2,14 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-from anki.consts import NEW_CARDS_RANDOM, dynOrderLabels
-from anki.hooks import addHook
-from aqt.utils import showInfo, openLink, shortcut
-from anki.utils import isMac
-import aqt
+from anki.consts import dynOrderLabels
+from anki.lang import _
 from anki.sound import clearAudioQueue
+from anki.utils import isMac
+from aqt.qt import QDialog, SIGNAL
+from aqt.utils import openLink, shortcut
+import aqt
+
 
 class Overview(object):
     "Deck overview."
@@ -54,7 +55,7 @@ class Overview(object):
         elif url == "decks":
             self.mw.moveToState("deckBrowser")
         elif url == "review":
-            openLink(aqt.appShared+"info/%s?v=%s"%(self.sid, self.sidVer))
+            openLink(aqt.appShared + "info/%s?v=%s" % (self.sid, self.sidVer))
         elif url == "limits":
             self.onLimits()
         else:
@@ -81,24 +82,22 @@ class Overview(object):
     ############################################################
 
     def _renderPage(self):
-        but = self.mw.button
         deck = self.mw.col.decks.current()
         self.sid = deck.get("sharedFrom")
         if self.sid:
             self.sidVer = deck.get("ver", None)
-            shareLink = '<a class=smallLink href="review">Reviews and Updates</a>'
+            shareLink = \
+                '<a class=smallLink href="review">Reviews and Updates</a>'
         else:
             shareLink = ""
-        self.web.stdHtml(self._body % dict(
-            deck=deck['name'],
-            shareLink=shareLink,
-            desc=self._desc(deck),
-            table=self._table()
-            ), self.mw.sharedCSS + self._css)
+        self.web.stdHtml(
+            self._body % dict(deck=deck['name'], shareLink=shareLink,
+                              desc=self._desc(deck), table=self._table()),
+            self.mw.sharedCSS + self._css)
 
     def _desc(self, deck):
         if deck['dyn']:
-            search, limit, order  = deck['terms'][0]
+            search, limit, order = deck['terms'][0]
             desc = "%s<br>%s" % (
                 _("Search: %s") % search,
                 _("Order: %s") % dynOrderLabels()[order].lower())
@@ -116,9 +115,10 @@ class Overview(object):
         else:
             return '''
 <div class="descfont description descmid" id=shortdesc>%s\
- <a class=smallLink href=# onclick="$('#shortdesc').hide();$('#fulldesc').show();">...More</a></div>
+ <a class=smallLink href=# onclick="$('#shortdesc').hide();\
+$('#fulldesc').show();">...More</a></div>
 <div class="descfont description descmid" id=fulldesc>%s</div>''' % (
-                 desc[:160], desc)
+                desc[:160], desc)
 
     def _table(self):
         counts = list(self.mw.col.sched.counts())
@@ -141,11 +141,8 @@ class Overview(object):
 </table>
 </td><td align=center>
 %s</td></tr></table>''' % (
-    _("New"), counts[0],
-    _("Learning"), counts[1],
-    _("To Review"), counts[2],
-    but("study", _("Study Now"), id="study"))
-
+                _("New"), counts[0], _("Learning"), counts[1], _("To Review"),
+                counts[2], but("study", _("Study Now"), id="study"))
 
     _body = """
 <center>
@@ -192,7 +189,7 @@ text-align: center;
         else:
             if not sum(self.mw.col.sched.counts()):
                 if self.mw.col.sched.newDue() or \
-                   self.mw.col.sched.revDue():
+                        self.mw.col.sched.revDue():
                     links.append(["L", "limits", _("Study More")])
             links.append(["F", "cram", _("Filter/Cram")])
         buf = ""
@@ -205,7 +202,7 @@ text-align: center;
         if isMac:
             size = 28
         else:
-            size = 36 + self.mw.fontHeightDelta*3
+            size = 36 + self.mw.fontHeightDelta * 3
         self.bottom.web.setFixedHeight(size)
         self.bottom.web.setLinkHandler(self._linkHandler)
 
@@ -213,18 +210,19 @@ text-align: center;
     ######################################################################
 
     def onLimits(self):
-        d = QDialog(self.mw)
-        frm = aqt.forms.limits.Ui_Dialog()
-        frm.setupUi(d)
-        deck = self.mw.col.decks.current()
-        frm.newToday.setValue(deck.get('extendNew', 10))
-        frm.revToday.setValue(deck.get('extendRev', 50))
+
         def accept():
             n = deck['extendNew'] = frm.newToday.value()
             r = deck['extendRev'] = frm.revToday.value()
             self.mw.col.decks.save(deck)
             self.mw.col.sched.extendLimits(n, r)
             self.mw.reset()
+
+        d = QDialog(self.mw)
+        frm = aqt.forms.limits.Ui_Dialog()
+        frm.setupUi(d)
+        deck = self.mw.col.decks.current()
+        frm.newToday.setValue(deck.get('extendNew', 10))
+        frm.revToday.setValue(deck.get('extendRev', 50))
         d.connect(frm.buttonBox, SIGNAL("accepted()"), accept)
         d.exec_()
-

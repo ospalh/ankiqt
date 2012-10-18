@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
+from anki import consts
+from anki.lang import _
+from anki.utils import isWin, isMac
+from aqt.qt import QDialog, QDialogButtonBox, Qt, SIGNAL
+from aqt.utils import askUser, openHelp, showWarning
 import aqt
-from anki.utils import ids2str, isWin, isMac
-from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser
-from operator import itemgetter
+
 
 class DeckConf(QDialog):
+
     def __init__(self, mw, first=False, search="", deck=None):
         QDialog.__init__(self, mw)
         self.mw = mw
@@ -41,13 +44,17 @@ class DeckConf(QDialog):
         self.exec_()
 
     def setupOrder(self):
-        import anki.consts as cs
-        self.form.order.addItems(cs.dynOrderLabels().values())
+        self.form.order.addItems(consts.dynOrderLabels().values())
 
     def setupExamples(self):
-        import anki.consts as cs
+
+        def onChange(*args):
+            if self.ignoreChange:
+                return
+            f.examples.setCurrentIndex(0)
+
         f = self.form
-        d = self.dynExamples = cs.dynExamples()
+        d = self.dynExamples = consts.dynExamples()
         for c, row in enumerate(d):
             if not row:
                 f.examples.insertSeparator(c)
@@ -57,10 +64,6 @@ class DeckConf(QDialog):
                      self.onExample)
         # we'll need to reset whenever something is changed
         self.ignoreChange = False
-        def onChange(*args):
-            if self.ignoreChange:
-                return
-            f.examples.setCurrentIndex(0)
         c = self.connect
         c(f.steps, SIGNAL("textEdited(QString)"), onChange)
         c(f.search, SIGNAL("textEdited(QString)"), onChange)

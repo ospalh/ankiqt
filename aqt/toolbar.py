@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-from aqt.webview import AnkiWebView
+from anki.lang import _
+from aqt.qt import Qt
+
 
 class Toolbar(object):
 
@@ -15,12 +16,11 @@ class Toolbar(object):
         self.web.setLinkHandler(self._linkHandler)
 
     def draw(self):
-        self.web.stdHtml(self._body % (
+        self.web.stdHtml(
             # may want a context menu here in the future
-            '&nbsp;'*20,
-            self._centerLinks(),
-            self._rightIcons()),
-                         self._css)
+            self._body % ('&nbsp;' * 20, self._centerLinks(),
+                          self._rightIcons()),
+            self._css)
 
     # Available links
     ######################################################################
@@ -46,7 +46,7 @@ class Toolbar(object):
         for ln, name, title in links:
             buf += '<a class=hitem title="%s" href="%s">%s</a>' % (
                 title, ln, name)
-            buf += "&nbsp;"*3
+            buf += "&nbsp;" * 3
         return buf
 
     def _rightIcons(self):
@@ -63,7 +63,7 @@ class Toolbar(object):
         # first set focus back to main window, or we're left with an ugly
         # focus ring around the clicked item
         self.mw.web.setFocus()
-        if l  == "decks":
+        if l == "decks":
             self.mw.moveToState("deckBrowser")
         elif l == "study":
             # if overview already shown, switch to review
@@ -119,6 +119,7 @@ color: #000;
 text-decoration: underline;
 }
 """
+
 
 class BottomBar(Toolbar):
 

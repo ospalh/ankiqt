@@ -1,17 +1,26 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-import os, copy, time, sys, re, traceback, zipfile, json
-from aqt.qt import *
-import anki
-import anki.importing as importing
-from aqt.utils import getOnlyText, getFile, showText, showWarning, openHelp, \
-    askUserDialog, askUser
-from anki.errors import *
+import json
+import os
+import re
+import traceback
+import zipfile
+
 from anki.hooks import addHook, remHook
-import aqt.forms, aqt.modelchooser, aqt.deckchooser
+from anki.lang import _
+from aqt.qt import QDialog, QDialogButtonBox, QFrame, QGridLayout, QLabel, \
+    QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget, Qt, SIGNAL
+from aqt.utils import askUser, askUserDialog, getFile, getOnlyText, openHelp, \
+    showText, showWarning
+import anki.importing as importing
+import aqt.deckchooser
+import aqt.forms
+import aqt.modelchooser
+
 
 class ChangeMap(QDialog):
+
     def __init__(self, mw, model, current):
         QDialog.__init__(self, mw, Qt.Window)
         self.mw = mw
@@ -33,7 +42,7 @@ class ChangeMap(QDialog):
             if current == "_tags":
                 self.frm.fields.setCurrentRow(n)
             else:
-                self.frm.fields.setCurrentRow(n+1)
+                self.frm.fields.setCurrentRow(n + 1)
         self.field = None
 
     def getField(self):
@@ -53,6 +62,7 @@ class ChangeMap(QDialog):
     def reject(self):
         self.accept()
 
+
 class ImportDialog(QDialog):
 
     def __init__(self, mw, importer):
@@ -61,7 +71,6 @@ class ImportDialog(QDialog):
         self.importer = importer
         self.frm = aqt.forms.importing.Ui_ImportDialog()
         self.frm.setupUi(self)
-        from aqt.tagedit import TagEdit
         self.connect(self.frm.buttonBox.button(QDialogButtonBox.Help),
                      SIGNAL("clicked()"), self.helpRequested)
         self.setupMappingFrame()
@@ -96,17 +105,20 @@ class ImportDialog(QDialog):
         #self.deck.setText(self.mw.col.decks.name(did))
 
     def onDelimiter(self):
-        str = getOnlyText(_("""\
+
+        def updateDelim():
+            self.importer.delimiter = str_
+            self.importer.updateDelimiter()
+
+        # Avoid using reserved word str
+        str_ = getOnlyText(_("""\
 By default, Anki will detect the character between fields, such as
 a tab, comma, and so on. If Anki is detecting the character incorrectly,
 you can enter it here. Use \\t to represent tab."""),
-                self, help="importing") or "\t"
-        str = str.replace("\\t", "\t")
-        str = str.encode("ascii")
+                           self, help="importing") or "\t"
+        str_ = str_.replace("\\t", "\t")
+        str_ = str_.encode("ascii")
         self.hideMapping()
-        def updateDelim():
-            self.importer.delimiter = str
-            self.importer.updateDelimiter()
         self.showMapping(hook=updateDelim)
         self.updateDelimiterButtonText()
 
@@ -128,8 +140,12 @@ you can enter it here. Use \\t to represent tab."""),
         elif d == ":":
             d = _("Colon")
         else:
-            d = `d`
-        txt = _("Fields separated by: %s") % d
+            # W604 backticks are deprecated, use 'repr()'
+            # d = `d`
+            # But repr is the wrong thing to use here. We want
+            # something to show the user.
+            d = u'"{0}"'.format(unicode(d))
+        txt = _(u"Fields separated by: %s") % d
         self.frm.autoDetect.setText(txt)
 
     def doImport(self, update=False):
@@ -171,7 +187,7 @@ you can enter it here. Use \\t to represent tab."""),
         self.frame = QFrame(self.frm.mappingArea)
         self.frm.mappingArea.setWidget(self.frame)
         self.mapbox = QVBoxLayout(self.frame)
-        self.mapbox.setContentsMargins(0,0,0,0)
+        self.mapbox.setContentsMargins(0, 0, 0, 0)
         self.mapwidget = None
 
     def hideMapping(self):
@@ -194,7 +210,6 @@ you can enter it here. Use \\t to represent tab."""),
         self.mapwidget.setLayout(self.grid)
         self.grid.setMargin(3)
         self.grid.setSpacing(6)
-        fields = self.importer.fields()
         for num in range(len(self.mapping)):
             text = _("Field <b>%d</b> of file is:") % (num + 1)
             self.grid.addWidget(QLabel(text), num, 0)
@@ -208,9 +223,13 @@ you can enter it here. Use \\t to represent tab."""),
             button = QPushButton(_("Change"))
             self.grid.addWidget(button, num, 2)
             self.connect(button, SIGNAL("clicked()"),
-                         lambda s=self,n=num: s.changeMappingNum(n))
+                         lambda s=self, n=num: s.changeMappingNum(n))
 
     def changeMappingNum(self, n):
+
+        def updateDelim():
+            self.importer.delimiter = self.savedDelimiter
+
         f = ChangeMap(self.mw, self.importer.model, self.mapping[n]).getField()
         try:
             # make sure we don't have it twice
@@ -221,8 +240,6 @@ you can enter it here. Use \\t to represent tab."""),
         self.mapping[n] = f
         if getattr(self.importer, "delimiter", False):
             self.savedDelimiter = self.importer.delimiter
-            def updateDelim():
-                self.importer.delimiter = self.savedDelimiter
             self.showMapping(hook=updateDelim, keepMapping=True)
         else:
             self.showMapping(keepMapping=True)
@@ -235,17 +252,19 @@ you can enter it here. Use \\t to represent tab."""),
     def helpRequested(self):
         openHelp("FileImport")
 
+
 def onImport(mw):
     filt = ";;".join([x[0] for x in importing.Importers])
-    file = getFile(mw, _("Import"), None, key="import",
-                   filter=filt)
-    if not file:
+    file_ = getFile(mw, _("Import"), None, key="import",
+                    filter=filt)
+    if not file_:
         return
-    file = unicode(file)
-    importFile(mw, file)
+    file_ = unicode(file_)
+    importFile(mw, file_)
 
-def importFile(mw, file):
-    ext = os.path.splitext(file)[1]
+
+def importFile(mw, file_):
+    ext = os.path.splitext(file_)[1]
     importer = None
     done = False
     for i in importing.Importers:
@@ -259,7 +278,7 @@ def importFile(mw, file):
     if not importer:
         # if no matches, assume TSV
         importer = importing.Importers[0][1]
-    importer = importer(mw.col, file)
+    importer = importer(mw.col, file_)
     # need to show import dialog?
     if importer.needMapper:
         # make sure we can load the file first
@@ -273,9 +292,10 @@ def importFile(mw, file):
             msg = unicode(e)
             if msg == "unknownFormat":
                 if ext == ".anki2":
-                    showWarning(_("""\
-.anki2 files are not designed for importing. If you're trying to restore from a \
-backup, please see the 'Backups' section of the user manual."""))
+                    showWarning(
+                        _(""".anki2 files are not designed for importing. \
+If you're trying to restore from a backup, please see the 'Backups' section \
+of the user manual."""))
                 else:
                     showWarning(_("Unknown file format."))
             else:
@@ -285,7 +305,7 @@ backup, please see the 'Backups' section of the user manual."""))
             return
         finally:
             mw.progress.finish()
-        diag = ImportDialog(mw, importer)
+        ImportDialog(mw, importer)
     else:
         # if it's an apkg, we need to ask whether to import/replace
         if importer.__class__.__name__ == "AnkiPackageImporter":
@@ -296,10 +316,9 @@ backup, please see the 'Backups' section of the user manual."""))
             importer.run()
         except Exception, e:
             if "invalidFile" in unicode(e):
-                msg = _("""\
-Invalid file. Please run a DB check in Anki 1.2 and try again.""")
-                msg += _(""" \
-Even if the DB check reports 'no problems found', a subsequent import should work.""")
+                msg = _(""" Invalid file. Please run a DB check in Anki 1.2 \
+and try again. Even if the DB check reports 'no problems found', \
+a subsequent import should work.""")
                 showWarning(msg)
             elif "readonly" in unicode(e):
                 showWarning(_("""\
@@ -314,12 +333,11 @@ Unable to import from a read-only file."""))
             mw.progress.finish()
         mw.reset()
 
+
 def setupApkgImport(mw, importer):
     diag = askUserDialog(_("""\
 Would you like to add to your collection, or replace it?"""),
-            [_("Add"),
-             _("Replace"),
-             _("Cancel")])
+                         [_("Add"), _("Replace"), _("Cancel")])
     diag.setIcon(QMessageBox.Question)
     diag.setDefault(0)
     ret = diag.run()
@@ -337,19 +355,20 @@ the file you're importing. Are you sure?"""), msgfunc=QMessageBox.warning):
     mw.progress.timer(
         100, lambda mw=mw, f=importer.file: replaceWithApkg(mw, f), False)
 
-def replaceWithApkg(mw, file):
+
+def replaceWithApkg(mw, file_):
     # unload collection, which will also trigger a backup
     mw.unloadCollection()
     # overwrite collection
-    z = zipfile.ZipFile(file)
+    z = zipfile.ZipFile(file_)
     z.extract("collection.anki2", mw.pm.profileFolder())
     # because users don't have a backup of media, it's safer to import new
     # data and rely on them running a media db check to get rid of any
     # unwanted media. in the future we might also want to deduplicate this
     # step
     d = os.path.join(mw.pm.profileFolder(), "collection.media")
-    for c, file in json.loads(z.read("media")).items():
-        open(os.path.join(d, file), "wb").write(z.read(str(c)))
+    for c, file_ in json.loads(z.read("media")).items():
+        open(os.path.join(d, file_), "wb").write(z.read(str(c)))
     z.close()
     # reload
     mw.loadCollection()

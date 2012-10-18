@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-from aqt.utils import askUser, getOnlyText, openLink, showWarning, showInfo, \
-    shortcut
-from anki.utils import isMac, ids2str, fmtTimeSpan
-import anki.js
 from anki.errors import DeckRenameError
-import aqt
+from anki.lang import _, ngettext
 from anki.sound import clearAudioQueue
+from anki.utils import ids2str, isMac, fmtTimeSpan
+from aqt.qt import QCursor, QMenu, QPoint, SIGNAL
+from aqt.utils import askUser, getOnlyText, openLink, shortcut, showInfo, \
+    showWarning
+import anki.js
+import aqt
+
 
 class DeckBrowser(object):
 
@@ -49,8 +51,8 @@ class DeckBrowser(object):
         elif cmd == "create":
             showInfo(_("""\
 To create a new deck, simply enter its name into any place that ask for \
-a deck name, such as when adding notes, changing a card's deck while browsing, \
-or importing text files."""))
+a deck name, such as when adding notes, changing a card's deck while \
+browsing, or importing text files."""))
         elif cmd == "drag":
             draggedDeckDid, ontoDeckDid = arg.split(',')
             self._dragDeckOnto(draggedDeckDid, ontoDeckDid)
@@ -137,9 +139,11 @@ body { margin: 1em; -webkit-user-select: none; }
         tree = self._renderDeckTree(self._dueTree)
         stats = self._renderStats()
         op = self._oldPos()
-        self.web.stdHtml(self._body%dict(tree=tree, stats=stats), css=css,
-                         js=anki.js.jquery+anki.js.ui, loadCB=lambda ok:\
-                         self.web.page().mainFrame().setScrollPosition(op))
+        self.web.stdHtml(
+            self._body % dict(tree=tree, stats=stats), css=css,
+            js=anki.js.jquery + anki.js.ui,
+            loadCB=lambda ok:
+                self.web.page().mainFrame().setScrollPosition(op))
         self.web.key = "deckBrowser"
         self._drawButtons()
 
@@ -147,17 +151,17 @@ body { margin: 1em; -webkit-user-select: none; }
         if self.web.key == "deckBrowser":
             return self.web.page().mainFrame().scrollPosition()
         else:
-            return QPoint(0,0)
+            return QPoint(0, 0)
 
     def _renderStats(self):
         cards, thetime = self.mw.col.db.first("""
 select count(), sum(time)/1000 from revlog
-where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
+where id > ?""", (self.mw.col.sched.dayCutoff - 86400) * 1000)
         cards = cards or 0
         thetime = thetime or 0
         msgp1 = ngettext("%d card", "%d cards", cards) % cards
-        buf = _("Studied %(a)s in %(b)s today.") % dict(a=msgp1,
-                                                        b=fmtTimeSpan(thetime, unit=2))
+        buf = _("Studied %(a)s in %(b)s today.") % dict(
+            a=msgp1, b=fmtTimeSpan(thetime, unit=2))
         return buf
 
     def _renderDeckTree(self, nodes, depth=0):
@@ -167,7 +171,7 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
             buf = """
 <tr><th colspan=5 align=left>%s</th><th class=count>%s</th>
 <th class=count>%s</th><th class=count></th></tr>""" % (
-            _("Deck"), _("Due"), _("New"))
+                _("Deck"), _("Due"), _("New"))
             buf += self._topLevelDragRow()
         else:
             buf = ""
@@ -178,6 +182,17 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         return buf
 
     def _deckRow(self, node, depth, cnt):
+
+        def indent():
+            return "&nbsp;" * 6 * depth
+
+        def nonzeroColour(cnt, colour):
+            if not cnt:
+                colour = "#e0e0e0"
+            if cnt >= 1000:
+                cnt = "1000+"
+            return "<font color='%s'>%s</font>" % (colour, cnt)
+
         name, did, due, lrn, new, children = node
         if did == 1 and cnt > 1 and not children:
             # if the default deck is empty, hide it
@@ -192,8 +207,6 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         if self.mw.col.decks.get(did)['collapsed']:
             prefix = "+"
         due += lrn
-        def indent():
-            return "&nbsp;"*6*depth
         if did == self.mw.col.conf['curDeck']:
             klass = 'deck current'
         else:
@@ -201,31 +214,28 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         buf = "<tr class='%s' id='%d'>" % (klass, did)
         # deck link
         if children:
-            collapse = "<a class=collapse href='collapse:%d'>%s</a>" % (did, prefix)
+            collapse = \
+                "<a class=collapse href='collapse:%d'>%s</a>" % (did, prefix)
         else:
             collapse = "<span class=collapse></span>"
         buf += """
-<td class=decktd colspan=5>%s%s<a class=deck href='open:%d'>%s</a></td>"""% (
+<td class=decktd colspan=5>%s%s<a class=deck href='open:%d'>%s</a></td>""" % (
             indent(), collapse, did, name)
         # due counts
-        def nonzeroColour(cnt, colour):
-            if not cnt:
-                colour = "#e0e0e0"
-            if cnt >= 1000:
-                cnt = "1000+"
-            return "<font color='%s'>%s</font>" % (colour, cnt)
         buf += "<td align=right>%s</td><td align=right>%s</td>" % (
             nonzeroColour(due, "#007700"),
             nonzeroColour(new, "#000099"))
         # options
         buf += "<td align=right class=opts>%s</td></tr>" % self.mw.button(
-            link="opts:%d"%did, name="<img valign=bottom src='qrc:/icons/gears.png'>&#9662;")
+            link="opts:%d" % did,
+            name="<img valign=bottom src='qrc:/icons/gears.png'>&#9662;")
         # children
-        buf += self._renderDeckTree(children, depth+1)
+        buf += self._renderDeckTree(children, depth + 1)
         return buf
 
     def _topLevelDragRow(self):
-        return "<tr class='top-level-drag-row'><td colspan='6'>&nbsp;</td></tr>"
+        return \
+            "<tr class='top-level-drag-row'><td colspan='6'>&nbsp;</td></tr>"
 
     def _dueImg(self, due, new):
         if due:
@@ -292,12 +302,13 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
                 "select count() from cards where did in {0} or "
                 "odid in {0}".format(ids2str(dids)))
             if cnt:
-                extra = ngettext(" It has %d card.", " It has %d cards.", cnt) % cnt
+                extra = ngettext(" It has %d card.",
+                                 " It has %d cards.", cnt) % cnt
             else:
                 extra = None
-        if deck['dyn'] or not extra or askUser(
-            (_("Are you sure you wish to delete %s?") % deck['name']) +
-            extra):
+        if deck['dyn'] or not extra or \
+                askUser((_("Are you sure you wish to delete %s?")
+                         % deck['name']) + extra):
             self.mw.progress.start(immediate=True)
             self.mw.col.decks.rem(did, True)
             self.mw.progress.finish()
@@ -323,9 +334,9 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         if isMac:
             size = 28
         else:
-            size = 36 + self.mw.fontHeightDelta*3
+            size = 36 + self.mw.fontHeightDelta * 3
         self.bottom.web.setFixedHeight(size)
         self.bottom.web.setLinkHandler(self._linkHandler)
 
     def _onShared(self):
-        openLink(aqt.appShared+"decks/")
+        openLink(aqt.appShared + "decks/")

@@ -2,17 +2,20 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
 import re
-from anki.consts import *
+from aqt.qt import QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QMenu, \
+    QPoint, QPushButton, QTabWidget, QVBoxLayout, QWebPage, QWidget, Qt, \
+    SIGNAL, SLOT
+from anki.consts import MODEL_CLOZE
 import aqt
-from anki.sound import playFromText, clearAudioQueue
-from aqt.utils import saveGeom, restoreGeom, getBase, mungeQA, \
-     saveSplitter, restoreSplitter, showInfo, askUser, getOnlyText, \
-     showWarning, openHelp, openLink
-from anki.utils import isMac, isWin, joinFields
+from anki.lang import _
+from anki.sound import clearAudioQueue, playFromText
+from aqt.utils import askUser, getBase, getOnlyText, mungeQA, openHelp, \
+    openLink, restoreGeom, saveGeom, showInfo, showWarning
+from anki.utils import joinFields
 from aqt.webview import AnkiWebView
 import anki.js
+
 
 class CardLayout(QDialog):
 
@@ -74,6 +77,10 @@ class CardLayout(QDialog):
             self.addTab(t)
 
     def addTab(self, t):
+
+        def linkClicked(url):
+            openLink(url)
+
         c = self.connect
         w = QWidget()
         l = QHBoxLayout()
@@ -117,8 +124,6 @@ class CardLayout(QDialog):
         pform.frontPrevBox.addWidget(pform.frontWeb)
         pform.backWeb = AnkiWebView()
         pform.backPrevBox.addWidget(pform.backWeb)
-        def linkClicked(url):
-            openLink(url)
         for wig in pform.frontWeb, pform.backWeb:
             wig.page().setLinkDelegationPolicy(
                 QWebPage.DelegateExternalLinks)
@@ -209,11 +214,11 @@ Please create a new card type first."""))
         base = getBase(self.mw.col)
         self.tab['pform'].frontWeb.stdHtml(
             ti(mungeQA(c.q(reload=True))), self.mw.reviewer._styles(),
-            bodyClass="card card%d" % (c.ord+1), head=base,
+            bodyClass="card card%d" % (c.ord + 1), head=base,
             js=anki.js.browserSel)
         self.tab['pform'].backWeb.stdHtml(
             ti(mungeQA(c.a()), type='a'), self.mw.reviewer._styles(),
-            bodyClass="card card%d" % (c.ord+1), head=base,
+            bodyClass="card card%d" % (c.ord + 1), head=base,
             js=anki.js.browserSel)
         clearAudioQueue()
         if c.id not in self.playedAudio:
@@ -245,7 +250,7 @@ Please create a new card type first."""))
 
     def onReorder(self):
         n = len(self.cards)
-        cur = self.card.template()['ord']+1
+        cur = self.card.template()['ord'] + 1
         pos = getOnlyText(
             _("Enter new card position (1...%s):") % n,
             default=str(cur))
@@ -323,7 +328,7 @@ adjust the template manually to switch the question and answer."""))
             a = m.addAction(_("Delete"))
             a.connect(a, SIGNAL("triggered()"),
                       lambda: self.onRemoveTab(self.tabs.currentIndex()))
-        m.exec_(button.mapToGlobal(QPoint(0,0)))
+        m.exec_(button.mapToGlobal(QPoint(0, 0)))
 
     def onBrowserDisplay(self):
         d = QDialog()
@@ -348,9 +353,9 @@ adjust the template manually to switch the question and answer."""))
         d.setWindowTitle("Anki")
         d.setMinimumWidth(400)
         l = QVBoxLayout()
-        lab = QLabel(_("""\
-Enter deck to place new %s cards in, or leave blank:""") %
-                           self.card.template()['name'])
+        lab = QLabel(
+            _(""" Enter deck to place new %s cards in, or leave blank:""") %
+            self.card.template()['name'])
         lab.setWordWrap(True)
         l.addWidget(lab)
         te = TagEdit(d, type=1)

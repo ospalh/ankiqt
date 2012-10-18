@@ -2,16 +2,15 @@
 # -*- coding: utf-8 -*-
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-import os
-from aqt.webview import AnkiWebView
-from aqt.utils import saveGeom, restoreGeom, maybeHideClose, openFolder
+from anki.lang import _
 from anki.utils import namedtmp
-from anki.hooks import addHook
+from aqt.qt import QDialog, QDialogButtonBox, QImage, QPainter, Qt, SIGNAL
+from aqt.utils import maybeHideClose, openFolder, restoreGeom, saveGeom
 import aqt
 
 # Deck Stats
 ######################################################################
+
 
 class DeckStats(QDialog):
 
@@ -28,7 +27,7 @@ class DeckStats(QDialog):
         f.setupUi(self)
         restoreGeom(self, self.name)
         b = f.buttonBox.addButton(_("Save Image"),
-                                          QDialogButtonBox.ActionRole)
+                                  QDialogButtonBox.ActionRole)
         b.connect(b, SIGNAL("clicked()"), self.browser)
         b.setAutoDefault(False)
         c = self.connect

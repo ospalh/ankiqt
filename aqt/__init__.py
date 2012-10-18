@@ -1,38 +1,49 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-import os, sys, optparse, atexit, tempfile, __builtin__
-from aqt.qt import *
-import locale, gettext
-import anki.lang
-from anki.consts import HELP_SITE as appHelpSite
-from anki.hooks import runHook
+import atexit
+import optparse
+import os
+import sys
+import tempfile
+import __builtin__
+import locale
+import gettext
 
-appVersion="2.0.0"
-appWebsite="http://ankisrs.net/"
-appChanges="http://ankisrs.net/docs/changes.html"
-appDonate="http://ankisrs.net/support/"
-appShared="https://ankiweb.net/shared/"
-appUpdate="https://ankiweb.net/update/desktop"
-mw = None # set on init
+from aqt.qt import QApplication, QCoreApplication, QEvent, QIODevice, \
+    QLocalServer, QLocalSocket, QMessageBox, QSharedMemory, QTranslator, Qt, \
+    SIGNAL
+import anki.lang
+from aqt import addcards, browser, editcurrent
+from anki.utils import isMac
+
+
+try:
+    # Not needed at this time, but warn early.
+    import aqt.forms
+except ImportError as e:
+    if "forms" in str(e):
+        print "If you're running from git, did you run build_ui.sh?\n"
+    raise
+
+appVersion = "2.0.0"
+appWebsite = "http://ankisrs.net/"
+appChanges = "http://ankisrs.net/docs/changes.html"
+appDonate = "http://ankisrs.net/support/"
+appShared = "https://ankiweb.net/shared/"
+appUpdate = "https://ankiweb.net/update/desktop"
+mw = None  # set on init
 
 moduleDir = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
 
-try:
-    import aqt.forms
-except ImportError, e:
-    if "forms" in str(e):
-        print "If you're running from git, did you run build_ui.sh?"
-        print
-    raise
 
 # Dialog manager - manages modeless windows
 ##########################################################################
 
+
 class DialogManager(object):
 
     def __init__(self):
-        from aqt import addcards, browser, editcurrent
         self._dialogs = {
             "AddCards": [addcards.AddCards, None],
             "Browser": [browser.Browser, None],
@@ -71,11 +82,13 @@ dialogs = DialogManager()
 _gtrans = None
 _qtrans = None
 
+
 def langDir():
     dir = os.path.join(moduleDir,  "aqt", "locale")
     if not os.path.exists(dir):
         dir = os.path.join(os.path.dirname(sys.argv[0]), "locale")
     return dir
+
 
 def setupLang(pm, app, force=None):
     global _gtrans, _qtrans
@@ -91,7 +104,7 @@ def setupLang(pm, app, force=None):
     __builtin__.__dict__['_'] = _gtrans.ugettext
     __builtin__.__dict__['ngettext'] = _gtrans.ungettext
     anki.lang.setLang(lang, local=False)
-    if lang in ("he","ar","fa"):
+    if lang in ("he", "ar", "fa"):
         app.setLayoutDirection(Qt.RightToLeft)
     else:
         app.setLayoutDirection(Qt.LeftToRight)
@@ -102,6 +115,7 @@ def setupLang(pm, app, force=None):
 
 # App initialisation
 ##########################################################################
+
 
 class AnkiApp(QApplication):
 
@@ -166,6 +180,7 @@ class AnkiApp(QApplication):
             return True
         return QApplication.event(self, evt)
 
+
 def parseArgs(argv):
     "Returns (opts, args)."
     parser = optparse.OptionParser()
@@ -175,10 +190,9 @@ def parseArgs(argv):
     parser.add_option("-l", "--lang", help="interface language (en, de, etc)")
     return parser.parse_args(argv[1:])
 
+
 def run():
     global mw
-    from anki.utils import isWin, isMac
-
     # on osx we'll need to add the qt plugins to the search path
     if isMac and getattr(sys, 'frozen', None):
         rd = os.path.abspath(moduleDir + "/../../..")

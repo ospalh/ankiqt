@@ -1,11 +1,13 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-
 import time
-from anki.sound import Recorder, play
-from aqt.utils import saveGeom, restoreGeom
+
+from aqt.qt import QApplication, QIcon, QMessageBox, QPixmap, QPushButton
+from anki.sound import Recorder
+from aqt.utils import restoreGeom, saveGeom
+from anki.lang import _
+
 
 def getAudio(parent, encode=True):
     "Record and return filename"
@@ -23,7 +25,7 @@ def getAudio(parent, encode=True):
     r.start()
     QApplication.instance().processEvents()
     while not mb.clickedButton():
-        txt =_("Recording...<br>Time: %0.1f")
+        txt = _("Recording...<br>Time: %0.1f")
         mb.setText(txt % (time.time() - t))
         mb.show()
         QApplication.instance().processEvents()

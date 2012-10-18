@@ -2,10 +2,14 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import os
-from aqt.qt import *
-import anki, aqt, aqt.tagedit
+
+from aqt.qt import QDialog, QDialogButtonBox, QPushButton, Qt, SIGNAL
+import aqt
+import aqt.tagedit
 from aqt.utils import getSaveFile, tooltip, showWarning
 from anki.exporting import exporters
+from anki.lang import _, ngettext
+
 
 class ExportDialog(QDialog):
 
@@ -38,11 +42,11 @@ class ExportDialog(QDialog):
         self.frm.includeTags.setShown(not isAnki)
 
     def accept(self):
-        file = getSaveFile(
+        file_ = getSaveFile(
             self, _("Export"), "export",
             self.exporter.key, self.exporter.ext)
         self.hide()
-        if file:
+        if file_:
             self.exporter.includeSched = (
                 self.frm.includeSched.isChecked())
             self.exporter.includeMedia = (
@@ -56,15 +60,16 @@ class ExportDialog(QDialog):
                 self.exporter.did = self.col.decks.id(name)
             self.mw.progress.start(immediate=True)
             try:
-                f = open(file, "wb")
+                f = open(file_, "wb")
                 f.close()
             except (OSError, IOError), e:
                 showWarning(_("Couldn't save file: %s") % unicode(e))
             else:
-                os.unlink(file)
-                self.exporter.exportInto(file)
-                tooltip(ngettext("%d card exported.", "%d cards exported.", \
-                                self.exporter.count) % self.exporter.count)
+                os.unlink(file_)
+                self.exporter.exportInto(file_)
+                tooltip(
+                    ngettext("%d card exported.", "%d cards exported.",
+                             self.exporter.count) % self.exporter.count)
             finally:
                 self.mw.progress.finish()
         QDialog.accept(self)

@@ -2,11 +2,14 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-from operator import itemgetter
 from anki.hooks import addHook, remHook, runHook
-from aqt.utils import isMac, shortcut
-import aqt
+from anki.lang import _
+import aqt.models
+from aqt.qt import QHBoxLayout, QKeySequence, QLabel, QPushButton, QShortcut, \
+    QSizePolicy, SIGNAL
+from aqt.studydeck import StudyDeck
+from aqt.utils import shortcut
+
 
 class ModelChooser(QHBoxLayout):
 
@@ -54,17 +57,17 @@ class ModelChooser(QHBoxLayout):
         self.widget.hide()
 
     def onEdit(self):
-        import aqt.models
         aqt.models.Models(self.mw, self.widget)
 
     def onModelChange(self):
-        from aqt.studydeck import StudyDeck
+
+        def nameFunc():
+            return sorted(self.deck.models.allNames())
+
         current = self.deck.models.current()['name']
         # edit button
         edit = QPushButton(_("Manage"))
         self.connect(edit, SIGNAL("clicked()"), self.onEdit)
-        def nameFunc():
-            return sorted(self.deck.models.allNames())
         ret = StudyDeck(
             self.mw, names=nameFunc,
             accept=_("Choose"), title=_("Choose Note Type"),

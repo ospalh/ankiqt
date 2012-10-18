@@ -1,12 +1,16 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-from aqt.qt import *
-from operator import itemgetter
-from aqt.utils import showInfo, askUser, getText, maybeHideClose, openHelp
-import aqt.modelchooser, aqt.clayout
 from anki import stdmodels
+from anki.lang import _, ngettext
+from aqt.qt import QDialog, QDialogButtonBox, QKeySequence, QListWidgetItem, \
+    QShortcut, Qt, SIGNAL
 from aqt.utils import saveGeom, restoreGeom
+from aqt.utils import showInfo, askUser, getText, maybeHideClose, openHelp
+from operator import itemgetter
+import aqt.clayout
+import aqt.modelchooser
+
 
 class Models(QDialog):
     def __init__(self, mw, parent=None):
@@ -29,7 +33,9 @@ class Models(QDialog):
 
     def setupModels(self):
         self.model = None
-        c = self.connect; f = self.form; box = f.buttonBox
+        c = self.connect
+        f = self.form
+        box = f.buttonBox
         s = SIGNAL("clicked()")
         t = QDialogButtonBox.ActionRole
         b = box.addButton(_("Add"), t)
@@ -126,6 +132,7 @@ class Models(QDialog):
         saveGeom(self, "models")
         QDialog.reject(self)
 
+
 class AddModel(QDialog):
 
     def __init__(self, mw, parent=None):
@@ -154,7 +161,8 @@ class AddModel(QDialog):
         s = QShortcut(QKeySequence("Return"), self)
         self.connect(s, SIGNAL("activated()"), self.accept)
         # help
-        self.connect(self.dialog.buttonBox, SIGNAL("helpRequested()"), self.onHelp)
+        self.connect(
+            self.dialog.buttonBox, SIGNAL("helpRequested()"), self.onHelp)
 
     def get(self):
         self.exec_()

@@ -3,40 +3,55 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import sys
-from aqt.qt import *
-from aqt.utils import openLink
+
+import pyqtconfig
+import pyqtSlot
+
 from anki.utils import isMac, isWin
+from aqt.qt import QCursor, QKeySequence, QMenu, QObject, QPainter, QWebPage, \
+    QWebView, Qt, SIGNAL
+from aqt.utils import openLink
+from aski.lang import _
 import anki.js
+
 QtConfig = pyqtconfig.Configuration()
 
 # Bridge for Qt<->JS
 ##########################################################################
 
+
 class Bridge(QObject):
+
     @pyqtSlot(str, result=str)
     def run(self, str):
         return unicode(self._bridge(unicode(str)))
+
     @pyqtSlot(str)
     def link(self, str):
         self._linkHandler(unicode(str))
+
     def setBridge(self, func):
         self._bridge = func
+
     def setLinkHandler(self, func):
         self._linkHandler = func
 
 # Page for debug messages
 ##########################################################################
 
+
 class AnkiWebPage(QWebPage):
 
     def __init__(self, jsErr):
         QWebPage.__init__(self)
         self._jsErr = jsErr
+
     def javaScriptConsoleMessage(self, msg, line, srcID):
         self._jsErr(msg, line, srcID)
 
 # Main web view
 ##########################################################################
+
 
 class AnkiWebView(QWebView):
 
@@ -57,7 +72,8 @@ class AnkiWebView(QWebView):
         self.connect(self, SIGNAL("linkClicked(QUrl)"), self._linkHandler)
         self.connect(self, SIGNAL("loadFinished(bool)"), self._loadFinished)
         self.allowDrops = False
-        # reset each time new html is set; used to detect if still in same state
+        # reset each time new html is set; used to detect if still in
+        # same state
         self.key = None
 
     def keyPressEvent(self, evt):
@@ -107,7 +123,8 @@ class AnkiWebView(QWebView):
         self._loadFinishedCB = loadCB
         QWebView.setHtml(self, html)
 
-    def stdHtml(self, body, css="", bodyClass="", loadCB=None, js=None, head=""):
+    def stdHtml(self, body, css="", bodyClass="", loadCB=None, js=None,
+                head=""):
         if isMac:
             button = "font-weight: bold; height: 24px;"
         else:
@@ -123,8 +140,8 @@ button {
 
 </head>
 <body class="%s">%s</body></html>""" % (
-    button, css, js or anki.js.jquery+anki.js.browserSel,
-    head, bodyClass, body), loadCB)
+                button, css, js or anki.js.jquery + anki.js.browserSel,
+                head, bodyClass, body), loadCB)
 
     def setBridge(self, bridge):
         self._bridge.setBridge(bridge)
@@ -138,7 +155,7 @@ button {
     def _jsErr(self, msg, line, srcID):
         sys.stdout.write(
             (_("JS error on line %(a)d: %(b)s") %
-              dict(a=line, b=msg+"\n")).encode("utf8"))
+             dict(a=line, b=msg + "\n")).encode("utf8"))
 
     def _linkHandler(self, url):
         self.linkHandler(url.toString())

@@ -2,21 +2,29 @@
 # Copyright: Damien Elmes <anki@ichi2.net>
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
-import sre_constants, cgi
-from aqt.qt import *
-import time, types, sys, re
-from operator import attrgetter, itemgetter
-import anki, anki.utils, aqt.forms
-from anki.utils import fmtTimeSpan, ids2str, stripHTMLMedia, isWin, intTime, isMac
-from aqt.utils import saveGeom, restoreGeom, saveSplitter, restoreSplitter, \
-    saveHeader, restoreHeader, saveState, restoreState, applyStyles, getTag, \
-    showInfo, askUser, tooltip, openHelp, showWarning, shortcut
-from anki.errors import *
-from anki.db import *
-from anki.hooks import runHook, addHook, remHook
-from aqt.webview import AnkiWebView
+import sre_constants
+import cgi
+import time
+import re
+from operator import itemgetter
+
+from anki.consts import MODEL_CLOZE
+from anki.hooks import addHook, remHook, runHook
+from anki.lang import _, ngettext
+from anki.utils import fmtTimeSpan, ids2str, intTime, isMac, isWin, \
+    stripHTMLMedia
+from aqt.qt import QAbstractItemView, QAbstractTableModel, QBrush, QColor, \
+    QComboBox, QDialog, QDialogButtonBox, QGridLayout, QHBoxLayout, \
+    QHeaderView, QIcon, QItemDelegate, QItemSelection, QItemSelectionModel, \
+    QKeySequence, QLabel, QMainWindow, QMenu, QPalette, QShortcut, \
+    QTreeWidgetItem, QVBoxLayout, QWebPage, QWidget, Qt, SIGNAL, SLOT
 from aqt.toolbar import Toolbar
-from anki.consts import *
+from aqt.utils import applyStyles, askUser, getTag, openHelp, restoreGeom, \
+    restoreHeader, restoreSplitter, restoreState, saveGeom, saveHeader, \
+    saveSplitter, saveState, shortcut, showInfo, showWarning, tooltip
+from aqt.webview import AnkiWebView
+import anki
+import aqt.forms
 
 COLOUR_SUSPENDED = "#FFFFB2"
 COLOUR_MARKED = "#D9B2E9"
@@ -25,6 +33,7 @@ COLOUR_MARKED = "#D9B2E9"
 
 # Data model
 ##########################################################################
+
 
 class DataModel(QAbstractTableModel):
 
@@ -69,8 +78,9 @@ class DataModel(QAbstractTableModel):
             return
         if role == Qt.TextAlignmentRole:
             align = Qt.AlignVCenter
-            if self.activeCols[index.column()] not in ("question", "answer",
-               "template", "deck", "noteFld", "note"):
+            if self.activeCols[index.column()] \
+                    not in ("question", "answer", "template", "deck",
+                            "noteFld", "note"):
                 align |= Qt.AlignHCenter
             return align
         elif role == Qt.DisplayRole or role == Qt.EditRole:
@@ -101,7 +111,7 @@ class DataModel(QAbstractTableModel):
     def search(self, txt, reset=True):
         if reset:
             self.beginReset()
-        t = time.time()
+        # t = time.time()
         # the db progress handler may cause a refresh, so we need to zero out
         # old data first
         self.cards = []
@@ -124,7 +134,7 @@ class DataModel(QAbstractTableModel):
         self.cardObjs = {}
 
     def endReset(self):
-        t = time.time()
+        # t = time.time()
         self.endResetModel()
         self.restoreSelection()
         self.browser.mw.progress.finish()
@@ -184,47 +194,48 @@ class DataModel(QAbstractTableModel):
         return self.activeCols[column]
 
     def columnData(self, index):
-        row = index.row()
+        # row = index.row()
         col = index.column()
-        type = self.columnType(col)
+        type_ = self.columnType(col)
         c = self.getCard(index)
-        if type == "question":
+        if type_ == "question":
             return self.question(c)
-        elif type == "answer":
+        elif type_ == "answer":
             return self.answer(c)
-        elif type == "noteFld":
+        elif type_ == "noteFld":
             f = c.note()
             return self.formatQA(f.fields[self.col.models.sortIdx(f.model())])
-        elif type == "template":
+        elif type_ == "template":
             t = c.template()['name']
             if c.model()['type'] == MODEL_CLOZE:
-                t += " %d" % (c.ord+1)
+                t += " %d" % (c.ord + 1)
             return t
-        elif type == "cardDue":
+        elif type_ == "cardDue":
             return self.nextDue(c, index)
-        elif type == "noteCrt":
-            return time.strftime("%Y-%m-%d", time.localtime(c.note().id/1000))
-        elif type == "noteMod":
+        elif type_ == "noteCrt":
+            return time.strftime("%Y-%m-%d",
+                                 time.localtime(c.note().id / 1000))
+        elif type_ == "noteMod":
             return time.strftime("%Y-%m-%d", time.localtime(c.note().mod))
-        elif type == "cardMod":
+        elif type_ == "cardMod":
             return time.strftime("%Y-%m-%d", time.localtime(c.mod))
-        elif type == "cardReps":
+        elif type_ == "cardReps":
             return str(c.reps)
-        elif type == "cardLapses":
+        elif type_ == "cardLapses":
             return str(c.lapses)
-        elif type == "note":
+        elif type_ == "note":
             return c.model()['name']
-        elif type == "cardIvl":
+        elif type_ == "cardIvl":
             if c.type == 0:
                 return _("(new)")
             elif c.type == 1:
                 return _("(learning)")
-            return fmtTimeSpan(c.ivl*86400)
-        elif type == "cardEase":
+            return fmtTimeSpan(c.ivl * 86400)
+        elif type_ == "cardEase":
             if c.type == 0:
                 return _("(new)")
-            return "%d%%" % (c.factor/10)
-        elif type == "deck":
+            return "%d%%" % (c.factor / 10)
+        elif type_ == "deck":
             if c.odid:
                 # in a cram deck
                 return "%s (%s)" % (
@@ -265,14 +276,15 @@ class DataModel(QAbstractTableModel):
             return str(c.due)
         elif c.queue == 1:
             date = c.due
-        elif c.queue in (2,3):
-            date = time.time() + ((c.due - self.col.sched.today)*86400)
+        elif c.queue in (2, 3):
+            date = time.time() + ((c.due - self.col.sched.today) * 86400)
         else:
             return _("(susp.)")
         return time.strftime("%Y-%m-%d", time.localtime(date))
 
 # Line painter
 ######################################################################
+
 
 class StatusDelegate(QItemDelegate):
 
@@ -303,6 +315,7 @@ class StatusDelegate(QItemDelegate):
 ######################################################################
 
 # fixme: respond to reset+edit hooks
+
 
 class Browser(QMainWindow):
 
@@ -347,7 +360,9 @@ class Browser(QMainWindow):
 
     def setupMenus(self):
         # actions
-        c = self.connect; f = self.form; s = SIGNAL("triggered()")
+        c = self.connect
+        f = self.form
+        s = SIGNAL("triggered()")
         c(f.actionReposition, s, self.reposition)
         c(f.actionReschedule, s, self.reschedule)
         c(f.actionCram, s, self.cram)
@@ -472,7 +487,8 @@ class Browser(QMainWindow):
             self.form.searchEdit.addItems(sh)
             self.mw.pm.profile['searchHistory'] = sh
         if self.mw.state == "review":
-            txt = txt.replace("is:current", "nid:%d"%self.mw.reviewer.card.nid)
+            txt = txt.replace("is:current",
+                              "nid:%d" % self.mw.reviewer.card.nid)
         elif "is:current" in txt:
             self.form.searchEdit.lineEdit().setText(prompt)
             self.form.searchEdit.lineEdit().selectAll()
@@ -489,12 +505,12 @@ class Browser(QMainWindow):
     def updateTitle(self):
         selected = len(self.form.tableView.selectionModel().selectedRows())
         cur = len(self.model.cards)
-        self.setWindowTitle(ngettext("Browser (%(cur)d card shown; %(sel)s)",
-                                     "Browser (%(cur)d cards shown; %(sel)s)",
-                                 cur) % {
-            "cur": cur,
-            "sel": ngettext("%d selected", "%d selected", selected) % selected
-            })
+        # Unroll to make more readable
+        sel_str = ngettext("%d selected", "%d selected", selected) % selected
+        self.setWindowTitle(
+            ngettext("Browser (%(cur)d card shown; %(sel)s)",
+                     "Browser (%(cur)d cards shown; %(sel)s)",
+                     cur) % {"cur": cur, "sel": sel_str})
         return selected
 
     def onReset(self):
@@ -692,7 +708,7 @@ by clicking on one on the left."""))
                     txt = ""
             txt = " ".join(items)
         if self.mw.app.keyboardModifiers() & Qt.AltModifier:
-            txt = "-"+txt
+            txt = "-" + txt
         if self.mw.app.keyboardModifiers() & Qt.ControlModifier:
             cur = unicode(self.form.searchEdit.lineEdit().text())
             if cur:
@@ -729,16 +745,17 @@ by clicking on one on the left."""))
             root.addChild(item)
 
     def _decksTree(self, root):
-        grps = self.col.sched.deckDueTree()
+
         def fillGroups(root, grps, head=""):
             for g in grps:
                 item = self.CallbackItem(
-                g[0], lambda g=g: self.setFilter(
-                    "deck", head+g[0]))
+                    g[0], lambda g=g: self.setFilter("deck", head + g[0]))
                 item.setIcon(0, QIcon(":/icons/deck16.png"))
                 root.addChild(item)
-                newhead = head + g[0]+"::"
+                newhead = head + g[0] + "::"
                 fillGroups(item, g[5], newhead)
+
+        grps = self.col.sched.deckDueTree()
         fillGroups(root, grps)
 
     def _modelTree(self, root):
@@ -782,7 +799,7 @@ by clicking on one on the left."""))
         from anki.stats import CardStats
         cs = CardStats(self.col, self.card)
         rep = cs.report()
-        m = self.card.model()
+        # m = self.card.model()
         rep = """
 <div style='width: 400px; margin: 0 auto 0;
 border: 1px solid #000; padding: 3px; '>%s</div>""" % rep
@@ -818,8 +835,9 @@ border: 1px solid #000; padding: 3px; '>%s</div>""" % rep
         cnt = 0
         for (date, ease, ivl, factor, taken, type) in reversed(entries):
             cnt += 1
-            s += "<tr><td>%s</td>" % time.strftime(_("<b>%Y-%m-%d</b> @ %H:%M"),
-                                                   time.localtime(date))
+            s += "<tr><td>%s</td>" \
+                % time.strftime(_("<b>%Y-%m-%d</b> @ %H:%M"),
+                                time.localtime(date))
             tstr = [_("Learn"), _("Review"), _("Relearn"), _("Filtered"),
                     _("Resched")][type]
             import anki.stats as st
@@ -839,13 +857,13 @@ border: 1px solid #000; padding: 3px; '>%s</div>""" % rep
             if ivl == 0:
                 ivl = _("0d")
             elif ivl > 0:
-                ivl = fmtTimeSpan(ivl*86400, short=True)
+                ivl = fmtTimeSpan(ivl * 86400, short=True)
             else:
                 ivl = cs.time(-ivl)
             s += ("<td align=right>%s</td>" * 5) % (
                 tstr,
                 ease, ivl,
-                "%d%%" % (factor/10) if factor else "",
+                "%d%%" % (factor / 10) if factor else "",
                 cs.time(taken)) + "</tr>"
         s += "</table>"
         if cnt < self.card.reps:
@@ -865,8 +883,8 @@ please see the browser documentation.""")
         return self.col.db.list("""
 select distinct nid from cards
 where id in %s""" % ids2str(
-    [self.model.cards[idx.row()] for idx in
-    self.form.tableView.selectionModel().selectedRows()]))
+                [self.model.cards[idx.row()] for idx in
+                 self.form.tableView.selectionModel().selectedRows()]))
 
     def selectedNotesAsCards(self):
         return self.col.db.list(
@@ -933,7 +951,8 @@ where id in %s""" % ids2str(sf))
         did = self.col.decks.id(ret.name)
         deck = self.col.decks.get(did)
         if deck['dyn']:
-            showWarning(_("Cards can't be manually moved into a filtered deck."))
+            showWarning(
+                _("Cards can't be manually moved into a filtered deck."))
             return
         self.model.beginReset()
         self.mw.checkpoint(_("Change Deck"))
@@ -1060,7 +1079,8 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
 
     def selectNotes(self):
         nids = self.selectedNotes()
-        self.form.searchEdit.lineEdit().setText("nid:"+",".join([str(x) for x in nids]))
+        self.form.searchEdit.lineEdit().setText(
+            "nid:" + ",".join([str(x) for x in nids]))
         # clear the selection so we don't waste energy preserving it
         tv = self.form.tableView
         tv.selectionModel().clear()
@@ -1071,7 +1091,8 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
         sm = self.form.tableView.selectionModel()
         items = sm.selection()
         self.form.tableView.selectAll()
-        sm.select(items, QItemSelectionModel.Deselect | QItemSelectionModel.Rows)
+        sm.select(items,
+                  QItemSelectionModel.Deselect | QItemSelectionModel.Rows)
 
     # Edit: undo
     ######################################################################
@@ -1118,20 +1139,19 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
         if frm.field.currentIndex() == 0:
             field = None
         else:
-            field = fields[frm.field.currentIndex()-1]
+            field = fields[frm.field.currentIndex() - 1]
         self.mw.checkpoint(_("Find and Replace"))
         self.mw.progress.start()
         self.model.beginReset()
         try:
             changed = self.col.findReplace(sf,
-                                            unicode(frm.find.text()),
-                                            unicode(frm.replace.text()),
-                                            frm.re.isChecked(),
-                                            field,
-                                            frm.ignoreCase.isChecked())
+                                           unicode(frm.find.text()),
+                                           unicode(frm.replace.text()),
+                                           frm.re.isChecked(),
+                                           field,
+                                           frm.ignoreCase.isChecked())
         except sre_constants.error:
-            ui.utils.showInfo(_("Invalid regular expression."),
-                              parent=self)
+            showInfo(_("Invalid regular expression."), parent=self)
             return
         else:
             self.onSearch()
@@ -1153,6 +1173,14 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
     ######################################################################
 
     def onFindDupes(self):
+
+        def onFin(code):
+            saveGeom(d, "findDupes")
+
+        def onClick():
+            field = fields[frm.fields.currentIndex()]
+            self.duplicatesReport(frm.webView, field, frm.search.text())
+
         d = QDialog(self)
         frm = aqt.forms.finddupes.Ui_Dialog()
         frm.setupUi(d)
@@ -1165,12 +1193,7 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
         self.connect(frm.webView,
                      SIGNAL("linkClicked(QUrl)"),
                      self.dupeLinkClicked)
-        def onFin(code):
-            saveGeom(d, "findDupes")
         self.connect(d, SIGNAL("finished(int)"), onFin)
-        def onClick():
-            field = fields[frm.fields.currentIndex()]
-            self.duplicatesReport(frm.webView, field, frm.search.text())
         search = frm.buttonBox.addButton(
             _("Search"), QDialogButtonBox.ActionRole)
         self.connect(search, SIGNAL("clicked()"), onClick)
@@ -1234,8 +1257,9 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
             return
         idx2 = sm.currentIndex()
         item = QItemSelection(idx2, idx)
-        sm.select(item, QItemSelectionModel.SelectCurrent|
-                  QItemSelectionModel.Rows)
+        sm.select(item,
+                  QItemSelectionModel.SelectCurrent
+                  | QItemSelectionModel.Rows)
 
     def onLastCard(self):
         sm = self.form.tableView.selectionModel()
@@ -1246,8 +1270,8 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
             return
         idx2 = sm.currentIndex()
         item = QItemSelection(idx, idx2)
-        sm.select(item, QItemSelectionModel.SelectCurrent|
-                  QItemSelectionModel.Rows)
+        sm.select(item, QItemSelectionModel.SelectCurrent
+                  | QItemSelectionModel.Rows)
 
     def onFind(self):
         self.form.searchEdit.setFocus()
@@ -1271,6 +1295,7 @@ update cards set usn=?, mod=?, did=? where odid=0 and id in """ + ids2str(
 
 # Change model dialog
 ######################################################################
+
 
 class ChangeModel(QDialog):
 
@@ -1345,11 +1370,12 @@ class ChangeModel(QDialog):
             l.addWidget(QLabel(_("Change %s to:") % x['name']), i, 0)
             cb = QComboBox()
             cb.addItems(targets)
-            idx = min(i, len(targets)-1)
+            idx = min(i, len(targets) - 1)
             cb.setCurrentIndex(idx)
             indices[cb] = idx
             self.connect(cb, SIGNAL("currentIndexChanged(int)"),
-                         lambda i, cb=cb, key=key: self.onComboChanged(i, cb, key))
+                         lambda i, cb=cb, key=key:
+                             self.onComboChanged(i, cb, key))
             combos.append(cb)
             l.addWidget(cb, i, 1)
         map.setLayout(l)
@@ -1443,6 +1469,7 @@ Are you sure you want to continue?""")):
 # Toolbar
 ######################################################################
 
+
 class BrowserToolbar(Toolbar):
 
     def __init__(self, mw, web, browser):
@@ -1450,38 +1477,41 @@ class BrowserToolbar(Toolbar):
         Toolbar.__init__(self, mw, web)
 
     def draw(self):
-        mark = self.browser.isMarked()
-        pause = self.browser.isSuspended()
+
         def borderImg(link, icon, on, title, tooltip=None):
             if on:
                 fmt = '''\
-<a class=hitem title="%s" href="%s">\
-<img valign=bottom style='border: 1px solid #aaa;' src="qrc:/icons/%s.png"> %s</a>'''
+<a class=hitem title="%s" href="%s"><img valign=bottom style='border: \
+1px solid #aaa;' src="qrc:/icons/%s.png"> %s</a>'''
             else:
                 fmt = '''\
-<a class=hitem title="%s" href="%s"><img style="padding: 1px;" valign=bottom src="qrc:/icons/%s.png"> %s</a>'''
+<a class=hitem title="%s" href="%s"><img style="padding: 1px;" \
+valign=bottom src="qrc:/icons/%s.png"> %s</a>'''
             return fmt % (tooltip or title, link, icon, title)
+
+        mark = self.browser.isMarked()
+        pause = self.browser.isSuspended()
         right = "<div>"
         right += borderImg("add", "add16", False, _("Add"))
         right += borderImg("info", "info", False, _("Info"),
-                       shortcut(_("Card Info (Ctrl+Shift+I)")))
+                           shortcut(_("Card Info (Ctrl+Shift+I)")))
         right += borderImg("mark", "star16", mark, _("Mark"),
-                       shortcut(_("Mark Note (Ctrl+K)")))
+                           shortcut(_("Mark Note (Ctrl+K)")))
         right += borderImg("pause", "pause16", pause, _("Suspend"))
         right += borderImg("setDeck", "deck16", False, _("Change Deck"),
                            shortcut(_("Move To Deck (Ctrl+D)")))
         right += borderImg("addtag", "addtag16", False, _("Add Tags"),
-                       shortcut(_("Bulk Add Tags (Ctrl+Shift+T)")))
+                           shortcut(_("Bulk Add Tags (Ctrl+Shift+T)")))
         right += borderImg("deletetag", "deletetag16", False,
-                           _("Remove Tags"), shortcut(_(
-                               "Bulk Remove Tags (Ctrl+Alt+T)")))
+                           _("Remove Tags"),
+                           shortcut(_("Bulk Remove Tags (Ctrl+Alt+T)")))
         right += borderImg("delete", "delete16", False, _("Delete"))
         right += "</div>"
         self.web.page().currentFrame().setScrollBarPolicy(
             Qt.Horizontal, Qt.ScrollBarAlwaysOff)
         self.web.stdHtml(self._body % (
-            "", #<span style='display:inline-block; width: 100px;'></span>",
-            #self._centerLinks(),
+            "",  # <span style='display:inline-block; width: 100px;'></span>",
+            # self._centerLinks(),
             right, ""), self._css + """
 #header { font-weight: normal; }
 a { margin-right: 1em; }
@@ -1494,14 +1524,14 @@ a { margin-right: 1em; }
     def _linkHandler(self, l):
         if l == "anki":
             self.showMenu()
-        elif l  == "add":
+        elif l == "add":
             self.browser.mw.onAddCard()
-        elif l  == "delete":
+        elif l == "delete":
             self.browser.deleteNotes()
-        elif l  == "setDeck":
+        elif l == "setDeck":
             self.browser.setDeck()
         # icons
-        elif l  == "info":
+        elif l == "info":
             self.browser.showCardInfo()
         elif l == "mark":
             self.browser.onMark()

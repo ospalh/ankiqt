@@ -3,7 +3,9 @@
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 import time
-from aqt.qt import *
+from aqt.qt import QApplication, QCursor, QEventLoop, QProgressDialog, \
+    QTimer, Qt, SIGNAL
+from anki.lang import _
 
 # fixme: if mw->subwindow opens a progress dialog with mw as the parent, mw
 # gets raised on finish on compiz. perhaps we should be using the progress
@@ -11,6 +13,7 @@ from aqt.qt import *
 
 # Progress info
 ##########################################################################
+
 
 class ProgressManager(object):
 
@@ -76,8 +79,10 @@ Your pysqlite2 is too old. Anki will appear frozen during long operations."""
     ##########################################################################
 
     class ProgressNoCancel(QProgressDialog):
+
         def closeEvent(self, evt):
             evt.ignore()
+
         def keyPressEvent(self, evt):
             if evt.key() == Qt.Key_Escape:
                 evt.ignore()
@@ -111,14 +116,15 @@ Your pysqlite2 is too old. Anki will appear frozen during long operations."""
         self._disabled = False
 
     def update(self, label=None, value=None, process=True, maybeShow=True):
-        #print self._min, self._counter, self._max, label, time.time() - self._lastTime
+        # print self._min, self._counter, self._max, label, \
+        #     time.time() - self._lastTime
         if maybeShow:
             self._maybeShow()
         self._lastTime = time.time()
         if label:
             self._win.setLabelText(label)
         if self._max and self._shown:
-            self._counter = value or (self._counter+1)
+            self._counter = value or (self._counter + 1)
             self._win.setValue(self._counter)
         if process:
             self.app.processEvents(QEventLoop.ExcludeUserInputEvents)

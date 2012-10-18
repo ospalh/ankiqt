@@ -6,14 +6,20 @@
 # - Saves in pickles rather than json to easily store Qt window state.
 # - Saves in sqlite rather than a flat file so the config can't be corrupted
 
-from aqt.qt import *
-import os, sys, time, random, cPickle, shutil, locale, re, atexit, urllib
+
+import cPickle
+import locale
+import os
+import random
+import re
+import shutil
+
+from aqt.qt import QDialog, QMessageBox, QSettings, SIGNAL
 from anki.db import DB
 from anki.utils import isMac, isWin, intTime, checksum
-from anki.lang import langs
+from anki.lang import _, langs
 from aqt.utils import showWarning
 from aqt import appHelpSite
-import anki.sync
 import aqt.forms
 
 metaConf = dict(
@@ -51,6 +57,7 @@ profileConf = dict(
     syncMedia=True,
     autoSync=True,
 )
+
 
 class ProfileManager(object):
 
@@ -217,10 +224,10 @@ to make backups easy. To tell Anki to use a different location,
 please see:
 
 %s
-""") % (appHelpSite +  "#startupopts")).encode("utf8"))
+""") % (appHelpSite + "#startupopts")).encode("utf8"))
 
     def _pwhash(self, passwd):
-        return checksum(unicode(self.meta['id'])+unicode(passwd))
+        return checksum(unicode(self.meta['id']) + unicode(passwd))
 
     # Default language
     ######################################################################
@@ -232,9 +239,12 @@ please see:
         import __builtin__
         __builtin__.__dict__['_'] = lambda x: x
         # create dialog
+
         class NoCloseDiag(QDialog):
+
             def reject(self):
                 pass
+
         d = self.langDiag = NoCloseDiag()
         f = self.langForm = aqt.forms.setlang.Ui_Dialog()
         f.setupUi(d)
