@@ -88,8 +88,8 @@ body { margin: 1em; -webkit-user-select: none; }
 .collapse { color: #000; text-decoration:none; display:inline-block;
     width: 1em; }
 .filtered { color: #00a !important; }
-
-""" % dict(width=_dragIndicatorBorderWidth)
+%(qtip)s
+ """ % dict(width=_dragIndicatorBorderWidth, qtip=anki.js.qtip_css)
 
     _body = """
 <center>
@@ -143,7 +143,7 @@ body { margin: 1em; -webkit-user-select: none; }
             },
             content: {
                 text: function() {
-                    var dls = .split(" ");
+                    var dls = $(this).attr('title').split(" ");
                     return   '<font color=#007700>' + dls[0]
                              + '</font> + <font color=#990000> '
                              + dls[1] + '</font>';
@@ -256,7 +256,7 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         buf += """\
 <td align=right class="duelrn" title="%d %d">%s</td>\
 <td align=right>%s</td>"""  % (
-            due,lrn,
+            due, lrn,
             nonzeroColour(due + lrn, "#007700"),
             nonzeroColour(new, "#000099"))
         # options
