@@ -73,7 +73,6 @@ class Reviewer(object):
         self.card = c
         clearAudioQueue()
         if not c:
-        if not c:
             # self.mw.moveToState("overview")
             # Do what going to overview and then to deck browser did
             # by hand, skipping the display of the overview.
