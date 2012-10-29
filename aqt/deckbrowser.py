@@ -57,17 +57,13 @@ class DeckBrowser(object):
 
     def _keyHandler(self, evt):
         if evt.key() == Qt.Key_Up:
-            print 'pd'
             self._previousDeck()
         if evt.key() == Qt.Key_Down:
-            print 'nd'
             self._nextDeck()
-        if evt.key() == Qt.Key_Return or evt.key() == Qt.Key_Enter:
-            print 'sd'
-            self._selDeck()
-        key = unicode(evt.text())
-        # My special.
-        if key == "f":
+        if evt.key() == Qt.Key_Return  or evt.key() == Qt.Key_Enter:
+            self.mw.onOverview()
+        key_text = unicode(evt.text())
+        if key_text == "f":
             self.mw.onCram()
 
     def _selDeck(self, did=None):
@@ -87,26 +83,20 @@ class DeckBrowser(object):
         except (ValueError, TypeError):
             # Most likely reason: first deck. Then prevousDid() returns
             # u''.
-            print 'not pd'
-            raise
             return
         current_did = self.mw.col.conf['curDeck']
         self.mw.col.decks.select(previous_did)
-        self.web.eval('moveCurrentClass({0}, {1})'.format(
-                current_did, previous_did))
+        self.web.eval('moveCurrentClass({0}, {1})'.format(current_did, previous_did))
 
     def _nextDeck(self):
         try:
             next_did = int(self.web.eval("nextDid()"))
         except (ValueError, TypeError):
             # last deck
-            print 'not pd'
-            raise
             return
         current_did = self.mw.col.conf['curDeck']
         self.mw.col.decks.select(next_did)
-        self.web.eval("moveCurrentClass({0}, {1})".format(
-                current_did, next_did))
+        self.web.eval("moveCurrentClass({0}, {1})".format(current_did, next_did))
 
     # HTML generation
     ##########################################################################
