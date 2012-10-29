@@ -73,7 +73,12 @@ class Reviewer(object):
         self.card = c
         clearAudioQueue()
         if not c:
-            self.mw.moveToState("overview")
+        if not c:
+            # self.mw.moveToState("overview")
+            # Do what going to overview and then to deck browser did
+            # by hand, skipping the display of the overview.
+            self.mw.col.reset()
+            self.mw.moveToState("deckBrowser")
             return
         if self._reps is None or self._reps % 100 == 0:
             # we recycle the webview periodically so webkit can free memory
