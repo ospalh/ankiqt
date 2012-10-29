@@ -61,7 +61,7 @@ class DeckBrowser(object):
         if evt.key() == Qt.Key_Down:
             self._nextDeck()
         if evt.key() == Qt.Key_Return  or evt.key() == Qt.Key_Enter:
-            self.mw.onOverview()
+            self._selDeck()
         key_text = unicode(evt.text())
         if key_text == "f":
             self.mw.onCram()
