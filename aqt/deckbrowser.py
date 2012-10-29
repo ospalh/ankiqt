@@ -88,6 +88,7 @@ body { margin: 1em; -webkit-user-select: none; }
 .collapse { color: #000; text-decoration:none; display:inline-block;
     width: 1em; }
 .filtered { color: #00a !important; }
+
 """ % dict(width=_dragIndicatorBorderWidth)
 
     _body = """
@@ -130,6 +131,29 @@ body { margin: 1em; -webkit-user-select: none; }
 
         py.link("drag:" + draggedDeckId + "," + ontoDeckId);
     }
+
+    function add_qtips(){
+        $('td.duelrn').qtip({
+            tip:true,
+            position:{
+                target: 'mouse',
+                my: 'right center',
+                at: 'top left',
+                adjust: {x: -10, y: -10}
+            },
+            content: {
+                text: function() {
+                    var dls = .split(" ");
+                    return   '<font color=#007700>' + dls[0]
+                             + '</font> + <font color=#990000> '
+                             + dls[1] + '</font>';
+                }
+            },
+            show: 'mouseover',
+            hide: 'mouseout'
+
+        })
+    }
 </script>
 """
 
@@ -141,9 +165,11 @@ body { margin: 1em; -webkit-user-select: none; }
         stats = self._renderStats()
         op = self._oldPos()
         self.web.stdHtml(self._body%dict(tree=tree, stats=stats), css=css,
-                         js=anki.js.jquery+anki.js.ui, loadCB=lambda ok:\
+                         js=anki.js.jquery+anki.js.ui + anki.js.qtip_js,
+                         loadCB=lambda ok:\
                          self.web.page().mainFrame().setScrollPosition(op))
         self.web.key = "deckBrowser"
+        self.web.eval("add_qtips()")
         self._drawButtons()
 
     def _oldPos(self):
@@ -195,7 +221,8 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         prefix = "-"
         if self.mw.col.decks.get(did)['collapsed']:
             prefix = "+"
-        due += lrn
+        # Don't add those. We show both in the qtip
+        # due += lrn
         def indent():
             return "&nbsp;"*6*depth
         if did == self.mw.col.conf['curDeck']:
@@ -220,11 +247,17 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
         def nonzeroColour(cnt, colour):
             if not cnt:
                 colour = "#e0e0e0"
-            if cnt >= 1000:
-                cnt = "1000+"
+            # Show higher numbers.
+            # if cnt >= 1000:
+            #    cnt = "1000+"
             return "<font color='%s'>%s</font>" % (colour, cnt)
-        buf += "<td align=right>%s</td><td align=right>%s</td>" % (
-            nonzeroColour(due, "#007700"),
+        # New style, put due and lrn in qtip, sum in left column as
+        # before.
+        buf += """\
+<td align=right class="duelrn" title="%d %d">%s</td>\
+<td align=right>%s</td>"""  % (
+            due,lrn,
+            nonzeroColour(due + lrn, "#007700"),
             nonzeroColour(new, "#000099"))
         # options
         buf += "<td align=right class=opts>%s</td></tr>" % self.mw.button(
