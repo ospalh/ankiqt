@@ -54,10 +54,13 @@ profileConf = dict(
 
 class ProfileManager(object):
 
-    def __init__(self, base=None, profile=None):
+    def __init__(self, base, profile=None):
+        # Base has no default any more. We use the base dir when we
+        # set up the QApplication now, so it has to be set before
+        # this.
         self.name = None
-        # instantiate base folder
-        self.base = base or self._defaultBase()
+        # instantiate base folder. No default.
+        self.base = base
         self.ensureLocalFS()
         self.ensureBaseExists()
         # load metadata
@@ -175,17 +178,6 @@ documentation for information on using a flash drive.""")
             os.makedirs(path)
         return path
 
-    def _defaultBase(self):
-        if isWin:
-            s = QSettings(QSettings.UserScope, "Microsoft", "Windows")
-            s.beginGroup("CurrentVersion/Explorer/Shell Folders")
-            d = s.value("Personal")
-            return os.path.join(d, "Anki")
-        elif isMac:
-            return os.path.expanduser("~/Documents/Anki")
-        else:
-            return os.path.expanduser("~/Anki")
-
     def _loadMeta(self):
         path = os.path.join(self.base, "prefs.db")
         new = not os.path.exists(path)
@@ -271,3 +263,21 @@ please see:
         sql = "update profiles set data = ? where name = ?"
         self.db.execute(sql, cPickle.dumps(self.meta), "_global")
         self.db.commit()
+
+
+def defaultBase():
+    """
+    Return the default directory.
+
+    Returns the path to the default directory to store all the data
+    when the user didn't provide one.
+    """
+    if isWin:
+        s = QSettings(QSettings.UserScope, "Microsoft", "Windows")
+        s.beginGroup("CurrentVersion/Explorer/Shell Folders")
+        d = s.value("Personal")
+        return os.path.join(d, "Anki")
+    elif isMac:
+        return os.path.expanduser("~/Documents/Anki")
+    else:
+        return os.path.expanduser("~/Anki")

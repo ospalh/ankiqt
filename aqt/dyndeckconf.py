@@ -4,7 +4,7 @@
 
 from aqt.qt import *
 import aqt
-from anki.utils import ids2str, isWin, isMac
+from anki.utils import ids2str, isMac, isWin
 from aqt.utils import showInfo, showWarning, openHelp, getOnlyText, askUser
 from operator import itemgetter
 
@@ -14,10 +14,11 @@ class DeckConf(QDialog):
         self.mw = mw
         self.deck = deck or self.mw.col.decks.current()
         # context-sensitive extras like deck:foo
+        self.first = first
         self.search = search
         self.form = aqt.forms.dyndconf.Ui_Dialog()
         self.form.setupUi(self)
-        if first:
+        if self.first:
             label = _("Build")
         else:
             label = _("Rebuild")
@@ -31,8 +32,18 @@ class DeckConf(QDialog):
         self.setWindowTitle(_("Options for %s") % self.deck['name'])
         self.setupOrder()
         self.loadConf()
+        if not isMac and not isWin:
+            mw.progress.timer(200, self.unsetFirst, False)
         self.show()
         self.exec_()
+
+    def moveEvent(self, event):
+        if self.first and not isMac and not isWin:
+            self.form.examples.showPopup()
+        return QDialog.moveEvent(self, event)
+
+    def unsetFirst(self):
+        self.first = False
 
     def setupOrder(self):
         import anki.consts as cs

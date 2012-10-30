@@ -206,7 +206,8 @@ The front of this card is empty. Please run Tools>Maintenance>Empty Cards.""")
 
     def _replayq(self, card):
         return self.mw.col.decks.confForDid(
-            self.card.odid or self.card.did).get('replayq', True)
+            # self.card.odid or self.card.did).get('replayq', True)
+            self.card.odid or self.card.did).get('replayq', False)
 
     def _toggleStar(self):
         self.web.eval("_toggleStar(%s);" % json.dumps(
@@ -397,7 +398,7 @@ Please run Tools>Maintenance>Empty Cards""")
             # can't pass a string in directly, and can't use re.escape as it
             # escapes too much
             return """
-<span style="font-family: '%s'; font-size: %spx">%s</span>""" % (
+<span id=coran style="font-family: '%s'; font-size: %spx">%s</span>""" % (
                 self.typeFont, self.typeSize, res)
         return re.sub(self.typeAnsPat, repl, buf)
 

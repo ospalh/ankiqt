@@ -384,7 +384,12 @@ where id > ?""", (self.mw.col.sched.dayCutoff-86400)*1000)
             (_("Are you sure you wish to delete %s?") % deck['name']) +
             extra):
             self.mw.progress.start(immediate=True)
+            try:
+                parent_did = self.mw.col.decks.parents(did)[-1]['id']
+            except:
+                parent_did = 1
             self.mw.col.decks.rem(did, True)
+            self.mw.col.decks.select(parent_did)
             self.mw.progress.finish()
             self.show()
 
